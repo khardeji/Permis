@@ -670,3 +670,13 @@ CREATE POLICY "instructor_media_read_own_or_admin" ON storage.objects
     bucket_id = 'instructor-media'
     AND ((storage.foldername(name))[1] = auth.uid()::text OR public.has_role(auth.uid(), 'admin'))
   );
+
+-- 10. Privilèges SQL pour les rôles anon et authenticated (requis en plus des politiques RLS)
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+GRANT SELECT ON public.instructors, public.galleries TO anon;
+GRANT INSERT ON public.contact_messages TO anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
