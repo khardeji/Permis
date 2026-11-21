@@ -1,9 +1,10 @@
 import { workspaceHead } from "@/lib/workspace-head";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Pencil, Plus, Users, Wallet } from "lucide-react";
+import { AlertCircle, Loader2, Pencil, Plus, Users, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { remaining, splitHours, totalPaid } from "@/lib/finance";
+import { remaining, splitHours, totalDue, totalPaid } from "@/lib/finance";
 import { formatDT, fmtHours, telLink, waLink } from "@/lib/format";
 import { CITIES } from "@/lib/site";
 import { useMyInstructor } from "../pro";
@@ -48,24 +49,44 @@ function StudentsPage() {
     },
   });
 
+  const hourlyRate = instructor?.price_per_hour ?? 0;
+
   const rows = (data?.students ?? []).map((s) => {
     const pays = (data?.payments ?? []).filter((p) => p.student_id === s.id);
     const less = (data?.lessons ?? []).filter((l) => l.student_id === s.id);
     const hours = splitHours(less);
-    return { s, paid: totalPaid(pays), left: remaining(s.agreed_price, pays), hours };
+    const due = totalDue(hours.done, hourlyRate);
+    return { s, paid: totalPaid(pays), due, left: remaining(due, pays), hours };
   });
 
   return (
     <>
       <PageHeader
         title="Mes élèves"
-        subtitle="Suivez la progression et les paiements de chaque élève."
+        subtitle={
+          hourlyRate > 0
+            ? `Suivi automatique basé sur votre tarif horaire : ${formatDT(hourlyRate)}/h.`
+            : "Suivez les heures effectuées et les paiements de chaque élève."
+        }
         actions={
           <Button onClick={() => setAddOpen(true)}>
             <Plus /> Ajouter un élève
           </Button>
         }
       />
+
+      {instructor && !hourlyRate && (
+        <Alert className="mb-5 border-warning/40 bg-warning-soft text-primary">
+          <AlertCircle className="size-4 text-warning-foreground" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>Définissez votre tarif horaire (DT/heure) pour calculer automatiquement les montants dus.</span>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/pro/profil">Configurer mon tarif</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isLoading ? (
         <p className="py-20 text-center text-muted-foreground">Chargement…</p>
       ) : rows.length === 0 ? (
@@ -81,12 +102,13 @@ function StudentsPage() {
         />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="px-5 py-3 font-medium">Élève</th>
                 <th className="px-5 py-3 font-medium">Permis</th>
-                <th className="px-5 py-3 font-medium">Heures</th>
+                <th className="px-5 py-3 font-medium">Heures effectuées</th>
+                <th className="px-5 py-3 font-medium">Total dû</th>
                 <th className="px-5 py-3 font-medium">Payé</th>
                 <th className="px-5 py-3 font-medium">Reste</th>
                 <th className="px-5 py-3 font-medium">Statut</th>
@@ -94,7 +116,7 @@ function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ s, paid, left, hours }) => (
+              {rows.map(({ s, paid, due, left, hours }) => (
                 <tr key={s.id} className="border-b border-border last:border-0 hover:bg-secondary/40">
                   <td className="px-5 py-3">
                     <p className="font-semibold text-primary">{s.full_name}</p>
@@ -104,7 +126,13 @@ function StudentsPage() {
                     </p>
                   </td>
                   <td className="px-5 py-3 text-muted-foreground">{s.license_type}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{fmtHours(hours.done)} / {s.hours_package} h</td>
+                  <td className="px-5 py-3 text-muted-foreground">
+                    <span className="font-medium text-primary">{fmtHours(hours.done)}</span>
+                    {hours.planned > 0 && (
+                      <span className="block text-xs text-muted-foreground">+{fmtHours(hours.planned)} planifiées</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 font-medium text-primary">{formatDT(due)}</td>
                   <td className="px-5 py-3 font-medium text-success">{formatDT(paid)}</td>
                   <td className={`px-5 py-3 font-medium ${left > 0 ? "text-warning-foreground" : "text-muted-foreground"}`}>{formatDT(left)}</td>
                   <td className="px-5 py-3"><StatusBadge status={s.status} /></td>
@@ -175,8 +203,6 @@ function StudentForm({
       email: String(f.get("email")).trim() || null,
       city: city || null,
       license_type: license,
-      agreed_price: Number(f.get("agreed_price")) || 0,
-      hours_package: Number(f.get("hours_package")) || 20,
       status,
       notes: String(f.get("notes")).trim() || null,
     };
@@ -187,7 +213,7 @@ function StudentForm({
     setBusy(true);
     const { error } = student
       ? await supabase.from("students").update(payload).eq("id", student.id)
-      : await supabase.from("students").insert({ ...payload, instructor_id: instructorId });
+      : await supabase.from("students").insert({ ...payload, instructor_id: instructorId, agreed_price: 0, hours_package: 0 });
     setBusy(false);
     if (error) {
       toast.error("Enregistrement impossible", { description: error.message });
@@ -203,7 +229,9 @@ function StudentForm({
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{student ? "Modifier l'élève" : "Ajouter un élève"}</DialogTitle>
-          <DialogDescription>Le prix convenu et le forfait d'heures servent au suivi automatique.</DialogDescription>
+          <DialogDescription>
+            Les heures et le montant à payer sont calculés automatiquement selon les séances effectuées et votre tarif horaire.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
@@ -231,14 +259,6 @@ function StudentForm({
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>{LICENSES.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="agreed_price">Prix convenu (DT)</Label>
-            <Input id="agreed_price" name="agreed_price" type="number" min="0" step="0.5" defaultValue={student?.agreed_price ?? 1200} className="h-11" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="hours_package">Forfait d'heures</Label>
-            <Input id="hours_package" name="hours_package" type="number" min="1" defaultValue={student?.hours_package ?? 20} className="h-11" />
           </div>
           {student && (
             <div className="space-y-2 sm:col-span-2">

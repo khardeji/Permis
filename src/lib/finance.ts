@@ -7,9 +7,16 @@ export function totalPaid(payments: PaymentLike[]) {
   return payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 }
 
+/** Total amount due based on completed driving hours and the instructor's hourly rate. */
+export function totalDue(doneHours: number, pricePerHour: number | string | null | undefined) {
+  const rate = Number(pricePerHour || 0);
+  if (rate <= 0 || doneHours <= 0) return 0;
+  return Math.round(doneHours * rate * 100) / 100;
+}
+
 /** Remaining balance never goes below zero (an overpayment is not a debt). */
-export function remaining(agreedPrice: number | string, payments: PaymentLike[]) {
-  return Math.max(0, Number(agreedPrice || 0) - totalPaid(payments));
+export function remaining(totalAmount: number | string, payments: PaymentLike[]) {
+  return Math.max(0, Number(totalAmount || 0) - totalPaid(payments));
 }
 
 export function lessonDurationHours(l: Pick<LessonLike, "starts_at" | "ends_at">) {

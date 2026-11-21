@@ -179,8 +179,9 @@ function ProfilePage() {
               <Input id="experience_years" name="experience_years" type="number" min="0" defaultValue={instructor.experience_years ?? ""} className="h-11" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price_per_hour">Tarif horaire (DT)</Label>
-              <Input id="price_per_hour" name="price_per_hour" type="number" min="0" step="0.5" defaultValue={instructor.price_per_hour ?? ""} className="h-11" />
+              <Label htmlFor="price_per_hour">Tarif d'une heure de conduite (DT/heure)</Label>
+              <Input id="price_per_hour" name="price_per_hour" type="number" min="0" step="0.5" placeholder="Ex. 25" defaultValue={instructor.price_per_hour ?? ""} className="h-11" />
+              <p className="text-xs text-muted-foreground">Utilisé pour calculer automatiquement le montant dû par chaque élève selon ses heures effectuées.</p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="services">Services (séparés par des virgules)</Label>

@@ -1,13 +1,10 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ClipboardList, Loader2, X } from "lucide-react";
+import { Check, ClipboardList, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { EmptyState, PageHeader, Panel, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -24,7 +21,7 @@ type Request = Tables<"enrollment_requests">;
 function RequestsPage() {
   const { data: instructor } = useMyInstructor();
   const qc = useQueryClient();
-  const [accepting, setAccepting] = useState<Request | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["pro-requests", instructor?.id],
@@ -43,13 +40,14 @@ function RequestsPage() {
   const pending = requests.filter((r) => r.status === "pending");
   const decided = requests.filter((r) => r.status !== "pending");
 
-  async function decide(req: Request, accept: boolean, price?: number, hours?: number) {
+  async function decide(req: Request, accept: boolean) {
+    setBusyId(req.id);
     const { error } = await supabase.rpc("decide_enrollment", {
       _request_id: req.id,
       _accept: accept,
-      ...(accept && price !== undefined ? { _agreed_price: price } : {}),
-      ...(accept && hours !== undefined ? { _hours: hours } : {}),
+      ...(accept ? { _agreed_price: 0, _hours: 0 } : {}),
     });
+    setBusyId(null);
     if (error) {
       toast.error("Action impossible", { description: error.message });
       return;
@@ -90,8 +88,8 @@ function RequestsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => setAccepting(r)}><Check /> Accepter</Button>
-                        <Button size="sm" variant="outline" onClick={() => decide(r, false)}><X /> Refuser</Button>
+                        <Button size="sm" disabled={busyId === r.id} onClick={() => decide(r, true)}><Check /> Accepter</Button>
+                        <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => decide(r, false)}><X /> Refuser</Button>
                       </div>
                     </div>
                   </li>
@@ -115,52 +113,6 @@ function RequestsPage() {
           )}
         </div>
       )}
-
-      <AcceptDialog
-        request={accepting}
-        onClose={() => setAccepting(null)}
-        onConfirm={(price, hours) => {
-          if (accepting) decide(accepting, true, price, hours);
-          setAccepting(null);
-        }}
-      />
     </>
-  );
-}
-
-function AcceptDialog({ request, onClose, onConfirm }: { request: Request | null; onClose: () => void; onConfirm: (price: number, hours: number) => void }) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <Dialog open={!!request} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Accepter {request?.full_name}</DialogTitle>
-          <DialogDescription>Définissez le prix convenu et le forfait d'heures pour le suivi automatique.</DialogDescription>
-        </DialogHeader>
-        <form
-          className="grid gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            setBusy(true);
-            onConfirm(Number(f.get("price")) || 0, Number(f.get("hours")) || 20);
-            setBusy(false);
-          }}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="price">Prix convenu (DT)</Label>
-            <Input id="price" name="price" type="number" min="0" step="0.5" defaultValue={1200} className="h-11" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="hours">Forfait d'heures</Label>
-            <Input id="hours" name="hours" type="number" min="1" defaultValue={20} className="h-11" />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={busy}>{busy && <Loader2 className="animate-spin" />} Accepter l'élève</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -2,8 +2,8 @@ import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { Wallet } from "lucide-react";
 import { EmptyState, PageHeader, Panel, StatCard } from "@/components/dashboard/DashboardShell";
-import { remaining, totalPaid } from "@/lib/finance";
-import { formatDT, fmtDate } from "@/lib/format";
+import { remaining, splitHours, totalDue, totalPaid } from "@/lib/finance";
+import { formatDT, fmtDate, fmtHours } from "@/lib/format";
 import { useMyStudent } from "../eleve";
 import { useMyTraining } from "./index";
 
@@ -16,15 +16,24 @@ function ElevePayments() {
   const { data: student } = useMyStudent();
   const { data: training, isLoading } = useMyTraining(student?.id);
 
+  const lessons = training?.lessons ?? [];
   const payments = training?.payments ?? [];
+  const hourlyRate = training?.instructor?.price_per_hour ?? 0;
+  const hours = splitHours(lessons);
+  const due = totalDue(hours.done, hourlyRate);
   const paid = totalPaid(payments);
-  const left = student ? remaining(student.agreed_price, payments) : 0;
+  const left = remaining(due, payments);
 
   return (
     <>
-      <PageHeader title="Mes paiements" subtitle="Le récapitulatif de vos règlements, mis à jour par votre moniteur." />
+      <PageHeader title="Mes paiements" subtitle="Le montant est calculé automatiquement selon vos heures effectuées et le tarif horaire de votre moniteur." />
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Prix convenu" value={formatDT(student?.agreed_price ?? 0)} icon={Wallet} />
+        <StatCard
+          label="Montant total dû"
+          value={formatDT(due)}
+          icon={Wallet}
+          hint={hourlyRate > 0 ? `${fmtHours(hours.done)} × ${formatDT(hourlyRate)}/h` : `${fmtHours(hours.done)} effectuées`}
+        />
         <StatCard label="Total payé" value={formatDT(paid)} icon={Wallet} tone="success" />
         <StatCard label="Reste à payer" value={formatDT(left)} icon={Wallet} tone={left > 0 ? "warning" : "success"} />
       </div>

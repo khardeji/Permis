@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { remaining, splitHours, totalPaid, paymentsByMonth } from "@/lib/finance";
+import { remaining, splitHours, totalDue, totalPaid, paymentsByMonth } from "@/lib/finance";
 
 const payments = [
   { amount: 100, paid_at: "2026-11-05" },
@@ -12,7 +12,13 @@ describe("finances élève", () => {
     expect(totalPaid(payments)).toBe(400);
   });
 
-  it("calcule le reste à payer à partir du prix convenu", () => {
+  it("calcule automatiquement le montant dû : 12 h × 25 DT/h = 300 DT", () => {
+    expect(totalDue(12, 25)).toBe(300);
+    expect(totalDue(1.5, 30)).toBe(45);
+    expect(totalDue(10, null)).toBe(0);
+  });
+
+  it("calcule le reste à payer à partir du montant dû", () => {
     expect(remaining(900, payments)).toBe(500);
   });
 

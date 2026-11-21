@@ -3,10 +3,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CalendarDays, Car, Clock, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { EmptyState, PageHeader, Panel, StatCard, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
-import { remaining, splitHours, totalPaid } from "@/lib/finance";
+import { remaining, splitHours, totalDue, totalPaid } from "@/lib/finance";
 import { formatDT, fmtDate, fmtHours, fmtTime } from "@/lib/format";
 import { useMyStudent } from "../eleve";
 
@@ -62,34 +61,56 @@ function EleveHome() {
 
   const lessons = training?.lessons ?? [];
   const payments = training?.payments ?? [];
+  const hourlyRate = training?.instructor?.price_per_hour ?? 0;
   const hours = splitHours(lessons);
+  const due = totalDue(hours.done, hourlyRate);
   const paid = totalPaid(payments);
-  const left = remaining(student.agreed_price, payments);
+  const left = remaining(due, payments);
   const next = lessons.find((l) => l.status === "scheduled" && new Date(l.ends_at) > new Date());
-  const progress = student.hours_package > 0 ? Math.min(100, (hours.done / student.hours_package) * 100) : 0;
 
   return (
     <>
       <PageHeader title={`Bonjour ${student.full_name.split(" ")[0]} 👋`} subtitle="Voici votre progression vers le permis." />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Heures effectuées" value={fmtHours(hours.done)} icon={Clock} hint={`Forfait : ${student.hours_package} h`} />
+        <StatCard
+          label="Heures effectuées"
+          value={fmtHours(hours.done)}
+          icon={Clock}
+          hint={hourlyRate > 0 ? `Tarif : ${formatDT(hourlyRate)}/h` : undefined}
+        />
         <StatCard label="Heures planifiées" value={fmtHours(hours.planned)} icon={CalendarDays} tone="brand" />
         <StatCard label="Total payé" value={formatDT(paid)} icon={Wallet} tone="success" />
-        <StatCard label="Reste à payer" value={formatDT(left)} icon={Wallet} tone={left > 0 ? "warning" : "success"} />
+        <StatCard
+          label="Reste à payer"
+          value={formatDT(left)}
+          icon={Wallet}
+          tone={left > 0 ? "warning" : "success"}
+          hint={`Total dû : ${formatDT(due)}`}
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Panel title="Ma progression">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{fmtHours(hours.done)} sur {student.hours_package} h</span>
-              <span className="font-semibold text-primary">{Math.round(progress)} %</span>
+        <Panel title="Récapitulatif de formation">
+          <dl className="divide-y divide-border text-sm">
+            <div className="flex items-center justify-between py-2.5">
+              <dt className="text-muted-foreground">Permis visé</dt>
+              <dd className="font-semibold text-primary">{student.license_type}</dd>
             </div>
-            <Progress value={progress} className="h-3" />
-            <p className="text-sm text-muted-foreground">
-              Permis visé : <span className="font-medium text-primary">{student.license_type}</span>
-            </p>
-          </div>
+            <div className="flex items-center justify-between py-2.5">
+              <dt className="text-muted-foreground">Heures effectuées</dt>
+              <dd className="font-semibold text-primary">{fmtHours(hours.done)}</dd>
+            </div>
+            <div className="flex items-center justify-between py-2.5">
+              <dt className="text-muted-foreground">Tarif horaire du moniteur</dt>
+              <dd className="font-semibold text-primary">
+                {hourlyRate > 0 ? `${formatDT(hourlyRate)} / heure` : "Non renseigné"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between py-2.5">
+              <dt className="text-muted-foreground">Montant total calculé</dt>
+              <dd className="font-semibold text-primary">{formatDT(due)}</dd>
+            </div>
+          </dl>
         </Panel>
 
         <Panel

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, PageHeader, Panel, StatCard } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
-import { paymentsByMonth, paymentsByYear, remaining, totalPaid } from "@/lib/finance";
+import { paymentsByMonth, paymentsByYear, remaining, splitHours, totalDue, totalPaid } from "@/lib/finance";
 import { formatDT, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMyInstructor } from "../pro";
@@ -30,29 +30,33 @@ function FinancesPage() {
     enabled: !!instructor,
     queryFn: async () => {
       const iid = instructor!.id;
-      const [payments, students] = await Promise.all([
+      const [payments, students, lessons] = await Promise.all([
         supabase
           .from("payments")
           .select("id, student_id, amount, method, paid_at, note, students(full_name)")
           .eq("instructor_id", iid)
           .order("paid_at", { ascending: false }),
-        supabase.from("students").select("id, agreed_price").eq("instructor_id", iid).neq("status", "completed"),
+        supabase.from("students").select("id").eq("instructor_id", iid).neq("status", "completed"),
+        supabase.from("lessons").select("student_id, starts_at, ends_at, status").eq("instructor_id", iid),
       ]);
-      return { payments: payments.data ?? [], students: students.data ?? [] };
+      return { payments: payments.data ?? [], students: students.data ?? [], lessons: lessons.data ?? [] };
     },
   });
 
   const payments = data?.payments ?? [];
+  const lessons = data?.lessons ?? [];
+  const hourlyRate = instructor?.price_per_hour ?? 0;
   const years = useMemo(() => paymentsByYear(payments).map((p) => p.year), [payments]);
   const yearOptions = [...new Set([new Date().getFullYear(), ...years])].sort((a, b) => b - a);
   const months = useMemo(() => paymentsByMonth(payments, year), [payments, year]);
   const maxMonth = Math.max(1, ...months);
   const yearTotal = months.reduce((a, b) => a + b, 0);
   const allPaid = totalPaid(payments);
-  const totalRemaining = (data?.students ?? []).reduce(
-    (sum, s) => sum + remaining(s.agreed_price, payments.filter((p) => p.student_id === s.id)),
-    0,
-  );
+  const totalRemaining = (data?.students ?? []).reduce((sum, s) => {
+    const sHours = splitHours(lessons.filter((l) => l.student_id === s.id));
+    const due = totalDue(sHours.done, hourlyRate);
+    return sum + remaining(due, payments.filter((p) => p.student_id === s.id));
+  }, 0);
 
   async function remove(id: string) {
     const { error } = await supabase.from("payments").delete().eq("id", id);

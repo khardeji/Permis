@@ -20,7 +20,7 @@ function AdminStudents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("students")
-        .select("id, full_name, city, phone, license_type, agreed_price, status, created_at, instructors(first_name, last_name)")
+        .select("id, full_name, city, phone, license_type, status, created_at, instructors(first_name, last_name, price_per_hour)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -49,14 +49,14 @@ function AdminStudents() {
                 <th className="px-5 py-3 font-medium">Élève</th>
                 <th className="px-5 py-3 font-medium">Moniteur</th>
                 <th className="px-5 py-3 font-medium">Permis</th>
-                <th className="px-5 py-3 font-medium">Prix convenu</th>
+                <th className="px-5 py-3 font-medium">Tarif horaire</th>
                 <th className="px-5 py-3 font-medium">Inscrit le</th>
                 <th className="px-5 py-3 font-medium">Statut</th>
               </tr>
             </thead>
             <tbody>
               {list.map((s) => {
-                const inst = s.instructors as { first_name: string; last_name: string } | null;
+                const inst = s.instructors as { first_name: string; last_name: string; price_per_hour: number | null } | null;
                 return (
                   <tr key={s.id} className="border-b border-border last:border-0 hover:bg-secondary/40">
                     <td className="px-5 py-3">
@@ -65,7 +65,7 @@ function AdminStudents() {
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{inst ? `${inst.first_name} ${inst.last_name}` : "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{s.license_type}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{formatDT(s.agreed_price)}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{inst?.price_per_hour ? `${formatDT(inst.price_per_hour)}/h` : "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{fmtDate(s.created_at)}</td>
                     <td className="px-5 py-3"><StatusBadge status={s.status} /></td>
                   </tr>
