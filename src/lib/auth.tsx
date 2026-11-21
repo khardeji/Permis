@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type Role = "admin" | "instructor" | "student";
 
+export const REMEMBER_EMAIL_KEY = "permiconduit_remember_email";
+export const SESSION_ONLY_KEY = "permiconduit_session_only";
+export const ACTIVE_SESSION_KEY = "permiconduit_active_session";
+
 type AuthState = { user: User | null; ready: boolean };
 const AuthCtx = createContext<AuthState>({ user: null, ready: false });
 
@@ -18,6 +22,18 @@ export function AuthProvider({
 }) {
   const [state, setState] = useState<AuthState>({ user: null, ready: false });
   useEffect(() => {
+    try {
+      if (
+        localStorage.getItem(SESSION_ONLY_KEY) === "1" &&
+        !sessionStorage.getItem(ACTIVE_SESSION_KEY)
+      ) {
+        localStorage.removeItem(SESSION_ONLY_KEY);
+        supabase.auth.signOut().catch(() => {});
+      }
+    } catch {
+      // ignore storage errors
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setState({ user: session?.user ?? null, ready: true });
       onChange?.(event);

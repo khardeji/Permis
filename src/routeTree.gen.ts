@@ -24,6 +24,7 @@ import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedProRouteImport } from './routes/_authenticated/pro'
 import { Route as MoniteurSlugRouteImport } from './routes/moniteur.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminAvisRouteImport } from './routes/_authenticated/admin/avis'
 import { Route as AuthenticatedAdminDemandesRouteImport } from './routes/_authenticated/admin/demandes'
 import { Route as AuthenticatedAdminElevesRouteImport } from './routes/_authenticated/admin/eleves'
 import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin/messages'
@@ -112,6 +113,11 @@ const MoniteurSlugRoute = MoniteurSlugRouteImport.update({
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminAvisRoute = AuthenticatedAdminAvisRouteImport.update({
+  id: '/avis',
+  path: '/avis',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedAdminDemandesRoute =
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/espace': typeof AuthenticatedEspaceRoute
   '/pro': typeof AuthenticatedProRouteWithChildren
   '/moniteur/$slug': typeof MoniteurSlugRoute
+  '/admin/avis': typeof AuthenticatedAdminAvisRoute
   '/admin/demandes': typeof AuthenticatedAdminDemandesRoute
   '/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/espace': typeof AuthenticatedEspaceRoute
   '/moniteur/$slug': typeof MoniteurSlugRoute
+  '/admin/avis': typeof AuthenticatedAdminAvisRoute
   '/admin/demandes': typeof AuthenticatedAdminDemandesRoute
   '/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/_authenticated/espace': typeof AuthenticatedEspaceRoute
   '/_authenticated/pro': typeof AuthenticatedProRouteWithChildren
   '/moniteur/$slug': typeof MoniteurSlugRoute
+  '/_authenticated/admin/avis': typeof AuthenticatedAdminAvisRoute
   '/_authenticated/admin/demandes': typeof AuthenticatedAdminDemandesRoute
   '/_authenticated/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/_authenticated/admin/messages': typeof AuthenticatedAdminMessagesRoute
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/espace'
     | '/pro'
     | '/moniteur/$slug'
+    | '/admin/avis'
     | '/admin/demandes'
     | '/admin/eleves'
     | '/admin/messages'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/espace'
     | '/moniteur/$slug'
+    | '/admin/avis'
     | '/admin/demandes'
     | '/admin/eleves'
     | '/admin/messages'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/_authenticated/espace'
     | '/_authenticated/pro'
     | '/moniteur/$slug'
+    | '/_authenticated/admin/avis'
     | '/_authenticated/admin/demandes'
     | '/_authenticated/admin/eleves'
     | '/_authenticated/admin/messages'
@@ -507,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/avis': {
+      id: '/_authenticated/admin/avis'
+      path: '/avis'
+      fullPath: '/admin/avis'
+      preLoaderRoute: typeof AuthenticatedAdminAvisRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/demandes': {
       id: '/_authenticated/admin/demandes'
       path: '/demandes'
@@ -616,6 +635,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAvisRoute: typeof AuthenticatedAdminAvisRoute
   AuthenticatedAdminDemandesRoute: typeof AuthenticatedAdminDemandesRoute
   AuthenticatedAdminElevesRoute: typeof AuthenticatedAdminElevesRoute
   AuthenticatedAdminMessagesRoute: typeof AuthenticatedAdminMessagesRoute
@@ -625,6 +645,7 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAvisRoute: AuthenticatedAdminAvisRoute,
   AuthenticatedAdminDemandesRoute: AuthenticatedAdminDemandesRoute,
   AuthenticatedAdminElevesRoute: AuthenticatedAdminElevesRoute,
   AuthenticatedAdminMessagesRoute: AuthenticatedAdminMessagesRoute,

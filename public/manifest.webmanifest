@@ -1,0 +1,26 @@
+{
+  "name": "PermiConduit",
+  "short_name": "PermiConduit",
+  "description": "Trouvez votre moniteur de conduite, suivez vos séances et vos paiements en ligne.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0f2544",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/logo-mark.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

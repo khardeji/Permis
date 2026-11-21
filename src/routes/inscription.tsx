@@ -6,6 +6,7 @@ import { z } from "zod";
 import { GraduationCap, Loader2, Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthShell } from "@/components/site/AuthShell";
@@ -83,12 +84,17 @@ function Signup() {
       });
       return;
     }
-    if (!data.session) {
-      toast.success("Compte créé", { description: "Vérifiez votre boîte mail pour confirmer votre adresse." });
-      return;
+    if (data.session) {
+      await supabase.auth.signOut();
     }
-    toast.success(type === "moniteur" ? "Bienvenue partenaire !" : "Bienvenue sur PermiConduit !");
-    navigate({ to: "/espace", replace: true });
+    toast.success("Compte créé !", {
+      description: "Vérifiez votre boîte mail pour confirmer votre adresse puis connectez-vous.",
+    });
+    navigate({
+      to: "/auth",
+      search: { checkEmail: true, email: parsed.data.email },
+      replace: true,
+    });
   }
 
   return (
@@ -126,7 +132,10 @@ function Signup() {
           </Select>
         </div>
         <F label="Email" name="email" type="email" autoComplete="email" className="sm:col-span-2" />
-        <F label="Mot de passe" name="password" type="password" autoComplete="new-password" className="sm:col-span-2" />
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="password">Mot de passe</Label>
+          <PasswordInput id="password" name="password" autoComplete="new-password" required className="h-11" />
+        </div>
         {type === "eleve" && (
           <div className="space-y-2 sm:col-span-2">
             <Label>Moniteur souhaité</Label>

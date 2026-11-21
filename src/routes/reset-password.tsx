@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/site/AuthShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,8 +50,8 @@ function Reset() {
   return (
     <AuthShell title="Nouveau mot de passe" subtitle="Choisissez un mot de passe sécurisé.">
       <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2"><Label htmlFor="password">Nouveau mot de passe</Label><Input id="password" name="password" type="password" required className="h-11" /></div>
-        <div className="space-y-2"><Label htmlFor="confirm">Confirmer</Label><Input id="confirm" name="confirm" type="password" required className="h-11" /></div>
+        <div className="space-y-2"><Label htmlFor="password">Nouveau mot de passe</Label><PasswordInput id="password" name="password" required className="h-11" /></div>
+        <div className="space-y-2"><Label htmlFor="confirm">Confirmer</Label><PasswordInput id="confirm" name="confirm" required className="h-11" /></div>
         <Button type="submit" className="h-11 w-full" disabled={busy}>Enregistrer</Button>
       </form>
     </AuthShell>
