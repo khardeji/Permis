@@ -1,0 +1,15 @@
+export const fr = {
+  "nav.home": "Accueil",
+  "nav.instructors": "Nos moniteurs",
+  "nav.how": "Comment ça marche",
+  "nav.about": "À propos",
+  "nav.contact": "Contact",
+  "nav.login": "Se connecter",
+  "nav.space": "Mon espace",
+  "cta.find": "Trouver un moniteur",
+  "cta.partner": "Devenir partenaire",
+  "cta.profile": "Voir le profil",
+  "cta.enroll": "Demander une inscription",
+  "cta.contact": "Contacter",
+  "footer.rights": "Tous droits réservés.",
+};

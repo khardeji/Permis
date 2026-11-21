@@ -1,0 +1,5 @@
+- Keep generated driving illustrations in a shared browser-safe media module; use them only as labeled fallbacks, preserving uploaded instructor photos.
+- Reuse the shared photo gallery for accessible enlargement and navigation rather than duplicating modal state in pages.
+- Private content routes use shared workspace metadata with unique page titles and noindex so each page owns its head without indexing account data.
+- Empty public directories use clearly labeled browser-side demo profiles, never database inserts or actionable demo enrollment IDs, so remixes remain inspectable without fabricating real partners.
+- Complete sparse public galleries with labeled illustrations while preserving every uploaded photo, so missing media never hides existing content.
