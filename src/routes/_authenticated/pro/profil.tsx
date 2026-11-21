@@ -11,6 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, Panel } from "@/components/dashboard/DashboardShell";
+import {
+  AvailabilityEditor,
+  availabilityToSchedule,
+  scheduleToAvailability,
+  type AvailabilityItem,
+  type WeekSchedule,
+} from "@/components/dashboard/AvailabilityEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { CITIES } from "@/lib/site";
 import { uploadMedia } from "@/lib/storage";
@@ -21,10 +28,7 @@ export const Route = createFileRoute("/_authenticated/pro/profil")({
   component: ProfilePage,
 });
 
-const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const SERVICE_SUGGESTIONS = ["Permis B", "Conduite accompagnée", "Perfectionnement", "Code de la route", "Moto", "Boîte automatique"];
-
-type Availability = { day: string; hours: string }[];
 
 function ProfilePage() {
   const { data: instructor, isLoading } = useMyInstructor();
@@ -32,6 +36,7 @@ function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [city, setCity] = useState<string | null>(null);
   const [accepting, setAccepting] = useState<boolean | null>(null);
+  const [schedule, setSchedule] = useState<WeekSchedule | null>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -48,7 +53,8 @@ function ProfilePage() {
   if (isLoading) return <p className="py-20 text-center text-muted-foreground">Chargement…</p>;
   if (!instructor) return <p className="py-20 text-center text-muted-foreground">Profil moniteur introuvable.</p>;
 
-  const availability = (Array.isArray(instructor.availability) ? instructor.availability : []) as unknown as Availability;
+  const availability = (Array.isArray(instructor.availability) ? instructor.availability : []) as unknown as AvailabilityItem[];
+  const currentSchedule = schedule ?? availabilityToSchedule(availability);
   const currentCity = city ?? instructor.city;
   const currentAccepting = accepting ?? instructor.accepting_students;
 
@@ -60,10 +66,7 @@ function ProfilePage() {
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 12);
-    const avail: Availability = DAYS.map((day) => ({
-      day,
-      hours: String(f.get(`avail_${day}`)).trim(),
-    })).filter((a) => a.hours);
+    const avail = scheduleToAvailability(currentSchedule);
     setBusy(true);
     const { error } = await supabase
       .from("instructors")
@@ -194,21 +197,8 @@ function ProfilePage() {
           </div>
         </Panel>
 
-        <Panel title="Disponibilités">
-          <div className="grid gap-3">
-            {DAYS.map((day) => (
-              <div key={day} className="grid grid-cols-[90px_1fr] items-center gap-3">
-                <Label htmlFor={`avail_${day}`} className="text-sm">{day}</Label>
-                <Input
-                  id={`avail_${day}`}
-                  name={`avail_${day}`}
-                  defaultValue={availability.find((a) => a.day === day)?.hours ?? ""}
-                  placeholder="Ex. 09:00–12:00, 14:00–18:00"
-                  className="h-10"
-                />
-              </div>
-            ))}
-          </div>
+        <Panel title="Disponibilités hebdomadaires">
+          <AvailabilityEditor value={currentSchedule} onChange={setSchedule} />
         </Panel>
 
         <div className="lg:col-span-2">
