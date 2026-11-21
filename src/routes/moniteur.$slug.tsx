@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/site/PhotoGallery";
-import { drivingCover, completeGallery } from "@/lib/driving-images";
-import { isDemoInstructor } from "@/lib/demo-instructors";
+import { InstructorReviewsSection } from "@/components/site/ReviewWidgets";
+import { drivingCover } from "@/lib/driving-images";
 import { SiteLayout } from "@/components/site/SiteLayout";
 import { InstructorAvatar } from "@/components/site/InstructorCard";
 import { EnrollButton } from "@/components/site/EnrollButton";
@@ -55,10 +55,9 @@ function InstructorPage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(instructorQuery(slug));
   if (!data) return null;
-  const { instructor: i, gallery } = data;
+  const { instructor: i, gallery, reviews } = data;
   const name = `${i.first_name} ${i.last_name}`.trim();
   const wa = i.whatsapp || i.phone;
-  const demo = isDemoInstructor(i.id);
 
   return (
     <SiteLayout>
@@ -81,13 +80,17 @@ function InstructorPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-3xl font-bold text-primary md:text-4xl">{name}</h1>
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-primary">
-                    <CheckCircle2 className="size-3.5 text-brand" /> {demo ? "Profil de démonstration · Illustration" : "Partenaire vérifié"}
+                    <CheckCircle2 className="size-3.5 text-brand" /> Partenaire vérifié
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><MapPin className="size-4" /> {i.city}</span>
                   {i.experience_years ? <span className="inline-flex items-center gap-1"><Award className="size-4" /> {i.experience_years} ans d'expérience</span> : null}
-                  {i.rating > 0 && <span className="inline-flex items-center gap-1"><Star className="size-4 fill-warning text-warning" /> {Number(i.rating).toFixed(1)}/5</span>}
+                  {reviews.length > 0 && i.rating > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="size-4 fill-warning text-warning" /> {Number(i.rating).toFixed(1)}/5 ({reviews.length} avis)
+                    </span>
+                  )}
                   {i.price_per_hour ? <span className="inline-flex items-center gap-1"><Wallet className="size-4" /> dès {formatDT(i.price_per_hour)}/h</span> : null}
                 </div>
               </div>
@@ -100,7 +103,7 @@ function InstructorPage() {
                   </a>
                 </Button>
               )}
-              {demo ? <Button asChild size="lg"><Link to="/inscription" search={{ type: "eleve" }}>Créer un compte élève</Link></Button> : <EnrollButton instructorId={i.id} instructorName={name} size="lg" variant="hero" />}
+              <EnrollButton instructorId={i.id} instructorName={name} size="lg" variant="hero" />
             </div>
           </div>
         </div>
@@ -108,19 +111,30 @@ function InstructorPage() {
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-8">
             <Card title="Présentation">
-              <p className="whitespace-pre-line leading-relaxed text-foreground/85">{i.bio || i.short_bio}</p>
+              <p className="whitespace-pre-line leading-relaxed text-foreground/85">{i.bio || i.short_bio || "Aucune présentation renseignée pour le moment."}</p>
             </Card>
             <Card title="Services proposés">
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {i.services.map((s) => (
-                  <li key={s} className="flex items-center gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm font-medium text-primary">
-                    <CheckCircle2 className="size-5 text-brand" /> {s}
-                  </li>
-                ))}
-              </ul>
+              {i.services.length > 0 ? (
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {i.services.map((s) => (
+                    <li key={s} className="flex items-center gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm font-medium text-primary">
+                      <CheckCircle2 className="size-5 text-brand" /> {s}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucun service renseigné pour le moment.</p>
+              )}
             </Card>
             <Card title="Galerie">
-              <PhotoGallery photos={completeGallery(gallery)} />
+              {gallery.length > 0 ? (
+                <PhotoGallery photos={gallery} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune photo publiée pour le moment.</p>
+              )}
+            </Card>
+            <Card title="Avis des élèves">
+              <InstructorReviewsSection instructorId={i.id} instructorSlug={i.slug} reviews={reviews} />
             </Card>
           </div>
 
@@ -157,7 +171,7 @@ function InstructorPage() {
                 {i.accepting_students ? "Accepte de nouveaux élèves" : "Complet pour le moment"}
               </p>
             </Card>
-            {!demo && <div className="text-center"><ReportButton instructorId={i.id} /></div>}
+            <div className="text-center"><ReportButton instructorId={i.id} /></div>
           </aside>
         </div>
       </section>

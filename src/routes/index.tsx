@@ -12,13 +12,17 @@ import { InstructorCard } from "@/components/site/InstructorCard";
 import { HowSteps } from "@/components/site/HowSteps";
 import { Faq } from "@/components/site/Faq";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { instructorsQuery } from "@/lib/public-queries";
+import { PhotoGallery } from "@/components/site/PhotoGallery";
+import { SiteReviewForm } from "@/components/site/ReviewWidgets";
+import {
+  instructorsQuery,
+  publicGalleryQuery,
+  publicStatsQuery,
+  siteReviewsQuery,
+} from "@/lib/public-queries";
 import { CITIES } from "@/lib/site";
 import { t } from "@/i18n";
 import heroImg from "@/assets/hero-driving.jpg";
-import { PhotoGallery } from "@/components/site/PhotoGallery";
-import { drivingImages } from "@/lib/driving-images";
-import { isDemoInstructor } from "@/lib/demo-instructors";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,7 +35,14 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(instructorsQuery()),
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(instructorsQuery()),
+      context.queryClient.ensureQueryData(publicStatsQuery()),
+      context.queryClient.ensureQueryData(publicGalleryQuery()),
+      context.queryClient.ensureQueryData(siteReviewsQuery()),
+    ]);
+  },
   component: Home,
 });
 
@@ -44,16 +55,15 @@ const BENEFITS = [
   { Icon: Users, title: "Pour élèves et moniteurs", text: "Un espace dédié et simple pour chacun, sur mobile comme sur ordinateur." },
 ];
 
-const TESTIMONIALS = [
-  { name: "Yasmine B.", city: "Tunis", text: "J'ai trouvé une monitrice près de chez moi en 5 minutes. Voir mes heures et mes paiements dans l'appli me rassure énormément.", rating: 5 },
-  { name: "Mehdi T.", city: "Ariana", text: "Fini les carnets papier ! Je sais exactement combien il me reste à payer et quand est ma prochaine séance.", rating: 5 },
-  { name: "Sami B.A., moniteur", city: "Tunis", text: "Mon planning et mes encaissements sont enfin organisés. Et mon mini-site m'apporte de nouveaux élèves chaque mois.", rating: 5 },
-];
-
 function Home() {
   const { data: instructors } = useSuspenseQuery(instructorsQuery());
+  const { data: stats } = useSuspenseQuery(publicStatsQuery());
+  const { data: gallery } = useSuspenseQuery(publicGalleryQuery());
+  const { data: siteReviews } = useSuspenseQuery(siteReviewsQuery());
   const navigate = useNavigate();
   const [city, setCity] = useState<string>("all");
+
+  const cities = [...new Set([...CITIES, ...instructors.map((i) => i.city).filter(Boolean)])].sort();
 
   return (
     <SiteLayout>
@@ -88,7 +98,7 @@ function Home() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toutes les villes</SelectItem>
-                    {CITIES.map((c) => (
+                    {cities.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>
@@ -122,29 +132,47 @@ function Home() {
               height={1104}
               className="relative aspect-[4/3] w-full rounded-[1.75rem] border-4 border-card object-cover shadow-elevated"
             />
-            <div className="absolute -bottom-6 -left-4 hidden animate-float rounded-2xl border border-border bg-card p-4 shadow-card sm:block">
-              <p className="text-xs font-medium text-muted-foreground">Prochaine séance</p>
-              <p className="mt-0.5 font-display text-lg font-bold text-primary">Demain · 09:00</p>
-              <p className="text-xs text-success">Circuit d'examen · 1h30</p>
-            </div>
-            <div className="absolute -right-3 -top-5 hidden rounded-2xl border border-border bg-card p-4 shadow-card sm:block">
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="size-4 fill-warning text-warning" />)}
+            {stats.reviews_count > 0 && stats.avg_rating !== null && (
+              <div className="absolute -right-3 -top-5 hidden rounded-2xl border border-border bg-card p-4 shadow-card sm:block">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`size-4 ${i < Math.round(stats.avg_rating!) ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1 text-xs font-semibold text-primary">
+                  {stats.avg_rating.toFixed(1)}/5 · {stats.reviews_count} avis
+                </p>
               </div>
-              <p className="mt-1 text-xs font-semibold text-primary">4,9/5 · élèves satisfaits</p>
-            </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* STATS */}
+      {/* STATS DYNAMIQUES */}
       <section className="border-y border-border bg-card">
         <div className="container-page grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
           {[
-            ["+150", "moniteurs partenaires"],
-            ["+2 400", "élèves accompagnés"],
-            ["24", "gouvernorats couverts"],
-            ["92 %", "de réussite à l'examen"],
+            [
+              String(stats.instructors_count),
+              stats.instructors_count > 1 ? "moniteurs partenaires" : "moniteur partenaire",
+            ],
+            [
+              String(stats.students_count),
+              stats.students_count > 1 ? "élèves accompagnés" : "élève accompagné",
+            ],
+            [
+              String(stats.cities_count),
+              stats.cities_count > 1 ? "villes couvertes" : "ville couverte",
+            ],
+            [
+              stats.avg_rating !== null ? `${stats.avg_rating.toFixed(1)}/5` : "—",
+              stats.reviews_count > 0
+                ? `${stats.reviews_count} avis publié${stats.reviews_count > 1 ? "s" : ""}`
+                : "avis vérifiés",
+            ],
           ].map(([n, l]) => (
             <div key={l} className="text-center">
               <p className="font-display text-3xl font-extrabold text-primary">{n}</p>
@@ -178,7 +206,7 @@ function Home() {
         </div>
       </section>
 
-      {/* INSTRUCTORS */}
+      {/* INSTRUCTORS (RÉELS UNIQUEMENT) */}
       <section className="container-page py-20">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <SectionHeading center={false} eyebrow="Nos moniteurs" title="Des moniteurs partenaires près de chez vous" />
@@ -186,43 +214,84 @@ function Home() {
             <Link to="/moniteurs">Voir tous les moniteurs <ArrowRight /></Link>
           </Button>
         </div>
-        {instructors.some((i) => isDemoInstructor(i.id)) && <p className="mt-5 text-sm text-muted-foreground">Profils de démonstration — les partenaires réels apparaîtront après validation.</p>}
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {instructors.slice(0, 6).map((i) => <InstructorCard key={i.id} i={i} />)}
-        </div>
+        {instructors.length > 0 ? (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {instructors.slice(0, 6).map((i) => <InstructorCard key={i.id} i={i} />)}
+          </div>
+        ) : (
+          <div className="mt-10 rounded-2xl border border-dashed border-border bg-card p-12 text-center">
+            <p className="font-semibold text-primary">Aucun moniteur partenaire validé pour le moment.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Vous êtes moniteur de conduite ? Rejoignez la plateforme dès maintenant.
+            </p>
+            <Button asChild variant="brand" className="mt-4">
+              <Link to="/inscription" search={{ type: "moniteur" }}>{t("cta.partner")} <ArrowRight /></Link>
+            </Button>
+          </div>
+        )}
       </section>
 
+      {/* GALERIE RÉELLE */}
       <section className="border-y border-border bg-secondary/60 py-16">
         <div className="container-page">
-          <SectionHeading eyebrow="Galerie" title="Du code à la conduite" />
-          <div className="mt-8"><PhotoGallery photos={drivingImages} /></div>
+          <SectionHeading eyebrow="Galerie" title="Photos de nos moniteurs partenaires" />
+          <div className="mt-8">
+            {gallery.length > 0 ? (
+              <PhotoGallery photos={gallery} />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+                Les photos publiées par nos moniteurs partenaires apparaîtront ici.
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="bg-navy-gradient py-20 text-navy-foreground">
+      {/* AVIS SUR LE SITE (DYNAMIQUES + FORMULAIRE) */}
+      <section id="avis" className="bg-navy-gradient py-20 text-navy-foreground scroll-mt-20">
         <div className="container-page">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-bold uppercase tracking-widest text-brand">Témoignages</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-brand">Avis & Témoignages</p>
             <h2 className="mt-2 text-3xl font-bold md:text-4xl">Ils avancent avec PermiConduit</h2>
+            <p className="mt-2 text-sm text-navy-foreground/75">
+              Avis authentiques publiés par nos élèves et moniteurs partenaires.
+            </p>
           </div>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {TESTIMONIALS.map((tm) => (
-              <figure key={tm.name} className="rounded-2xl border border-navy-foreground/10 bg-navy-foreground/5 p-6 backdrop-blur">
-                <Quote className="size-8 text-brand" />
-                <blockquote className="mt-3 text-navy-foreground/90">« {tm.text} »</blockquote>
-                <figcaption className="mt-5 flex items-center justify-between">
+
+          {siteReviews.length > 0 ? (
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              {siteReviews.map((tm) => (
+                <figure key={tm.id} className="flex flex-col justify-between rounded-2xl border border-navy-foreground/10 bg-navy-foreground/5 p-6 backdrop-blur">
                   <div>
-                    <p className="font-semibold">{tm.name}</p>
-                    <p className="text-xs text-navy-foreground/60">{tm.city}</p>
+                    <Quote className="size-8 text-brand" />
+                    <blockquote className="mt-3 whitespace-pre-line text-navy-foreground/90">« {tm.comment} »</blockquote>
                   </div>
-                  <div className="flex">
-                    {Array.from({ length: tm.rating }).map((_, i) => <Star key={i} className="size-4 fill-warning text-warning" />)}
-                  </div>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
+                  <figcaption className="mt-5 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{tm.author_name}</p>
+                      <p className="text-xs text-navy-foreground/60">
+                        {[tm.author_role, tm.city].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`size-4 ${i < tm.rating ? "fill-warning text-warning" : "text-navy-foreground/25"}`}
+                        />
+                      ))}
+                    </div>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-10 text-center text-sm text-navy-foreground/70">
+              Aucun avis sur la plateforme pour le moment. Soyez le premier à partager votre expérience !
+            </p>
+          )}
+
+          <SiteReviewForm reviews={siteReviews} />
         </div>
       </section>
 

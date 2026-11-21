@@ -1,17 +1,38 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getPublicInstructor, listPublicInstructors } from "./public.functions";
-import { demoInstructors, withDemoInstructors } from "./demo-instructors";
-import { drivingImages } from "./driving-images";
+import {
+  getPublicInstructor,
+  getPublicStats,
+  listPublicGallery,
+  listPublicInstructors,
+  listSiteReviews,
+} from "./public.functions";
 
 export const instructorsQuery = () =>
-  queryOptions({ queryKey: ["public-instructors"], queryFn: async () => withDemoInstructors(await listPublicInstructors()) });
+  queryOptions({
+    queryKey: ["public-instructors"],
+    queryFn: () => listPublicInstructors(),
+  });
 
 export const instructorQuery = (slug: string) =>
-  queryOptions({ queryKey: ["public-instructor", slug], queryFn: async () => {
-    const data = await getPublicInstructor({ data: { slug } });
-    if (data) return data;
-    const instructors = await listPublicInstructors();
-    if (instructors.length > 0) return null;
-    const demo = demoInstructors.find((i) => i.slug === slug || (slug === "leila-ben-ammar" && i.slug === "leila-hamdi"));
-    return demo ? { instructor: demo, gallery: drivingImages.map((photo, position) => ({ ...photo, position })) } : null;
-  } });
+  queryOptions({
+    queryKey: ["public-instructor", slug],
+    queryFn: () => getPublicInstructor({ data: { slug } }),
+  });
+
+export const publicGalleryQuery = () =>
+  queryOptions({
+    queryKey: ["public-gallery"],
+    queryFn: () => listPublicGallery(),
+  });
+
+export const siteReviewsQuery = () =>
+  queryOptions({
+    queryKey: ["site-reviews"],
+    queryFn: () => listSiteReviews(),
+  });
+
+export const publicStatsQuery = () =>
+  queryOptions({
+    queryKey: ["public-stats"],
+    queryFn: () => getPublicStats(),
+  });

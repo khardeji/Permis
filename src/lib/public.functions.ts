@@ -54,6 +54,42 @@ export type PublicInstructor = {
   rating: number;
 };
 
+export type PublicGalleryPhoto = {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  position: number;
+};
+
+export type SiteReview = {
+  id: string;
+  user_id: string;
+  author_name: string;
+  author_role: string;
+  city: string | null;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
+export type InstructorReview = {
+  id: string;
+  instructor_id: string;
+  student_user_id: string;
+  author_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
+export type PublicStats = {
+  instructors_count: number;
+  students_count: number;
+  cities_count: number;
+  reviews_count: number;
+  avg_rating: number | null;
+};
+
 export const listPublicInstructors = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await publicClient()
     .from("instructors")
@@ -76,10 +112,72 @@ export const getPublicInstructor = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!inst) return null;
-    const { data: gallery } = await sb
-      .from("galleries")
-      .select("id, image_url, caption, position")
-      .eq("instructor_id", (inst as { id: string }).id)
-      .order("position");
-    return { instructor: inst as unknown as PublicInstructor, gallery: gallery ?? [] };
+
+    const instructorId = (inst as { id: string }).id;
+    const [{ data: gallery }, { data: reviews }] = await Promise.all([
+      sb
+        .from("galleries")
+        .select("id, image_url, caption, position")
+        .eq("instructor_id", instructorId)
+        .order("position"),
+      (sb as unknown as { from: (t: string) => any })
+        .from("instructor_reviews")
+        .select("id, instructor_id, student_user_id, author_name, rating, comment, created_at")
+        .eq("instructor_id", instructorId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    return {
+      instructor: inst as unknown as PublicInstructor,
+      gallery: (gallery ?? []) as PublicGalleryPhoto[],
+      reviews: (reviews ?? []) as InstructorReview[],
+    };
   });
+
+export const listPublicGallery = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = publicClient();
+  const { data: active } = await sb.from("instructors").select("id, first_name, last_name").eq("status", "active");
+  const activeIds = (active ?? []).map((i) => i.id);
+  if (activeIds.length === 0) return [] as PublicGalleryPhoto[];
+
+  const { data, error } = await sb
+    .from("galleries")
+    .select("id, image_url, caption, position")
+    .in("instructor_id", activeIds)
+    .order("created_at", { ascending: false })
+    .limit(12);
+  if (error) return [] as PublicGalleryPhoto[];
+  return (data ?? []) as PublicGalleryPhoto[];
+});
+
+export const listSiteReviews = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = publicClient() as unknown as { from: (t: string) => any };
+  const { data, error } = await sb
+    .from("site_reviews")
+    .select("id, user_id, author_name, author_role, city, rating, comment, created_at")
+    .order("created_at", { ascending: false })
+    .limit(24);
+  if (error) return [] as SiteReview[];
+  return (data ?? []) as SiteReview[];
+});
+
+export const getPublicStats = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = publicClient() as unknown as { rpc: (fn: string) => Promise<{ data: any; error: any }> };
+  const { data, error } = await sb.rpc("get_public_stats");
+  if (error || !data) {
+    return {
+      instructors_count: 0,
+      students_count: 0,
+      cities_count: 0,
+      reviews_count: 0,
+      avg_rating: null,
+    } satisfies PublicStats;
+  }
+  return {
+    instructors_count: Number(data.instructors_count ?? 0),
+    students_count: Number(data.students_count ?? 0),
+    cities_count: Number(data.cities_count ?? 0),
+    reviews_count: Number(data.reviews_count ?? 0),
+    avg_rating: data.avg_rating !== null && data.avg_rating !== undefined ? Number(data.avg_rating) : null,
+  } satisfies PublicStats;
+});

@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.instructors (
   cover_url text,
   experience_years integer,
   price_per_hour numeric,
-  rating numeric NOT NULL DEFAULT 5.0,
+  rating numeric NOT NULL DEFAULT 0,
   services text[] NOT NULL DEFAULT '{}',
   availability jsonb NOT NULL DEFAULT '{}'::jsonb,
   accepting_students boolean NOT NULL DEFAULT true,
@@ -671,11 +671,152 @@ CREATE POLICY "instructor_media_read_own_or_admin" ON storage.objects
     AND ((storage.foldername(name))[1] = auth.uid()::text OR public.has_role(auth.uid(), 'admin'))
   );
 
--- 10. Privilèges SQL pour les rôles anon et authenticated (requis en plus des politiques RLS)
+-- 10. Avis sur le site (site_reviews) et avis sur les moniteurs (instructor_reviews)
+CREATE TABLE IF NOT EXISTS public.site_reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  author_name text NOT NULL,
+  author_role text NOT NULL DEFAULT 'Élève',
+  city text,
+  rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.instructor_reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  instructor_id uuid NOT NULL REFERENCES public.instructors(id) ON DELETE CASCADE,
+  student_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  author_name text NOT NULL,
+  rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (instructor_id, student_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_reviews_created ON public.site_reviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_instructor_reviews_instructor ON public.instructor_reviews(instructor_id, created_at DESC);
+
+-- Vérifie si l'utilisateur connecté est élève d'un moniteur donné
+CREATE OR REPLACE FUNCTION public.is_student_of(_instructor_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.students
+    WHERE instructor_id = _instructor_id AND user_id = auth.uid()
+  ) OR EXISTS (
+    SELECT 1 FROM public.instructor_students
+    WHERE instructor_id = _instructor_id AND student_user_id = auth.uid()
+  );
+$$;
+
+-- Recalcule automatiquement la note moyenne d'un moniteur
+CREATE OR REPLACE FUNCTION public.recalculate_instructor_rating()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_instructor_id uuid := COALESCE(NEW.instructor_id, OLD.instructor_id);
+BEGIN
+  UPDATE public.instructors
+  SET rating = COALESCE(
+    (SELECT ROUND(AVG(rating)::numeric, 1) FROM public.instructor_reviews WHERE instructor_id = v_instructor_id),
+    0
+  )
+  WHERE id = v_instructor_id;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_instructor_review_changed ON public.instructor_reviews;
+CREATE TRIGGER on_instructor_review_changed
+  AFTER INSERT OR UPDATE OR DELETE ON public.instructor_reviews
+  FOR EACH ROW EXECUTE FUNCTION public.recalculate_instructor_rating();
+
+-- Statistiques publiques dynamiques (sans exposer les données privées)
+CREATE OR REPLACE FUNCTION public.get_public_stats()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH all_ratings AS (
+    SELECT rating FROM public.site_reviews
+    UNION ALL
+    SELECT rating FROM public.instructor_reviews
+  )
+  SELECT jsonb_build_object(
+    'instructors_count', (SELECT count(*) FROM public.instructors WHERE status = 'active'),
+    'students_count', (SELECT count(*) FROM public.students),
+    'cities_count', (SELECT count(DISTINCT nullif(trim(city), '')) FROM public.instructors WHERE status = 'active'),
+    'reviews_count', (SELECT count(*) FROM all_ratings),
+    'avg_rating', (SELECT ROUND(AVG(rating)::numeric, 1) FROM all_ratings)
+  );
+$$;
+
+-- RLS pour site_reviews & instructor_reviews
+ALTER TABLE public.site_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.instructor_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "site_reviews_public_read" ON public.site_reviews;
+CREATE POLICY "site_reviews_public_read" ON public.site_reviews
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "site_reviews_insert_own" ON public.site_reviews;
+CREATE POLICY "site_reviews_insert_own" ON public.site_reviews
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "site_reviews_update_own_or_admin" ON public.site_reviews;
+CREATE POLICY "site_reviews_update_own_or_admin" ON public.site_reviews
+  FOR UPDATE USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "site_reviews_delete_own_or_admin" ON public.site_reviews;
+CREATE POLICY "site_reviews_delete_own_or_admin" ON public.site_reviews
+  FOR DELETE USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "instructor_reviews_public_read" ON public.instructor_reviews;
+CREATE POLICY "instructor_reviews_public_read" ON public.instructor_reviews
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "instructor_reviews_insert_student" ON public.instructor_reviews;
+CREATE POLICY "instructor_reviews_insert_student" ON public.instructor_reviews
+  FOR INSERT WITH CHECK (
+    student_user_id = auth.uid()
+    AND public.is_student_of(instructor_id)
+  );
+
+DROP POLICY IF EXISTS "instructor_reviews_update_student" ON public.instructor_reviews;
+CREATE POLICY "instructor_reviews_update_student" ON public.instructor_reviews
+  FOR UPDATE USING (
+    student_user_id = auth.uid()
+    AND public.is_student_of(instructor_id)
+  ) WITH CHECK (
+    student_user_id = auth.uid()
+    AND public.is_student_of(instructor_id)
+  );
+
+DROP POLICY IF EXISTS "instructor_reviews_delete_own_or_admin" ON public.instructor_reviews;
+CREATE POLICY "instructor_reviews_delete_own_or_admin" ON public.instructor_reviews
+  FOR DELETE USING (
+    student_user_id = auth.uid()
+    OR public.has_role(auth.uid(), 'admin')
+  );
+
+-- 11. Privilèges SQL pour les rôles anon et authenticated (requis en plus des politiques RLS)
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 
-GRANT SELECT ON public.instructors, public.galleries TO anon;
+GRANT SELECT ON public.instructors, public.galleries, public.site_reviews, public.instructor_reviews TO anon;
 GRANT INSERT ON public.contact_messages TO anon;
+GRANT EXECUTE ON FUNCTION public.get_public_stats() TO anon, authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;

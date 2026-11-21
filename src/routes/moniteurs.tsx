@@ -10,7 +10,6 @@ import { SiteLayout, PageHero } from "@/components/site/SiteLayout";
 import { InstructorCard } from "@/components/site/InstructorCard";
 import { instructorsQuery } from "@/lib/public-queries";
 import { CITIES } from "@/lib/site";
-import { isDemoInstructor } from "@/lib/demo-instructors";
 
 type Search = { q?: string; ville?: string; dispo?: boolean };
 
@@ -98,15 +97,22 @@ function Directory() {
         <p className="mt-8 text-sm text-muted-foreground">
           <span className="font-semibold text-primary">{list.length}</span> moniteur{list.length > 1 ? "s" : ""} trouvé{list.length > 1 ? "s" : ""}
         </p>
-        {data.some((i) => isDemoInstructor(i.id)) && <p className="mt-2 text-sm text-muted-foreground">Profils de démonstration avec illustrations. Aucune inscription n’est envoyée à ces profils.</p>}
         {list.length ? (
           <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((i) => <InstructorCard key={i.id} i={i} />)}
           </div>
         ) : (
           <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-            <p className="font-semibold text-primary">Aucun moniteur ne correspond à votre recherche.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Essayez une autre ville ou retirez un filtre.</p>
+            <p className="font-semibold text-primary">
+              {data.length === 0
+                ? "Aucun moniteur partenaire validé pour le moment."
+                : "Aucun moniteur ne correspond à votre recherche."}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {data.length === 0
+                ? "Les moniteurs apparaîtront ici dès leur validation par notre équipe."
+                : "Essayez une autre ville ou retirez un filtre."}
+            </p>
           </div>
         )}
       </section>

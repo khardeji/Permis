@@ -35,6 +35,12 @@ export function Header() {
               {n.label}
             </Link>
           ))}
+          <a
+            href="/#avis"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+          >
+            Avis
+          </a>
         </nav>
         <div className="hidden items-center gap-2 lg:flex">
           {user ? (
@@ -76,6 +82,13 @@ export function Header() {
               {n.label}
             </Link>
           ))}
+          <a
+            href="/#avis"
+            onClick={() => setOpen(false)}
+            className="rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary"
+          >
+            Avis
+          </a>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {user ? (
               <Button asChild className="col-span-2">
