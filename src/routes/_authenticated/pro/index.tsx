@@ -1,10 +1,8 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, startOfMonth } from "date-fns";
-import { ArrowRight, CalendarDays, ClipboardList, Sparkles, Users, Wallet } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { ArrowRight, CalendarDays, ClipboardList, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, StatCard, StatusBadge, EmptyState } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,8 +16,6 @@ export const Route = createFileRoute("/_authenticated/pro/")({
 
 function ProDashboard() {
   const { data: instructor, isLoading } = useMyInstructor();
-  const qc = useQueryClient();
-  const [seeding, setSeeding] = useState(false);
 
   const monthStart = startOfMonth(new Date()).toISOString();
   const monthEnd = endOfMonth(new Date()).toISOString();
@@ -57,18 +53,6 @@ function ProDashboard() {
     },
   });
 
-  async function seedDemo() {
-    setSeeding(true);
-    const { error } = await supabase.rpc("seed_my_demo_data");
-    setSeeding(false);
-    if (error) {
-      toast.error("Impossible de charger la démo", { description: error.message });
-      return;
-    }
-    toast.success("Données de démo chargées !", { description: "Élèves, séances et paiements d'exemple ont été ajoutés." });
-    qc.invalidateQueries();
-  }
-
   if (isLoading) return <p className="py-20 text-center text-muted-foreground">Chargement…</p>;
 
   if (!instructor) {
@@ -86,11 +70,6 @@ function ProDashboard() {
       <PageHeader
         title={`Bonjour ${instructor.first_name} 👋`}
         subtitle="Voici l'activité de votre auto-école ce mois-ci."
-        actions={
-          <Button variant="outline" onClick={seedDemo} disabled={seeding}>
-            <Sparkles /> {seeding ? "Chargement…" : "Charger des données de démo"}
-          </Button>
-        }
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Élèves actifs" value={stats?.students ?? "…"} icon={Users} />
