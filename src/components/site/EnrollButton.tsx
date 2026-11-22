@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useRoles } from "@/lib/auth";
+import { dispatchPushEvent } from "@/lib/notifications.functions";
 
 export function EnrollButton({ instructorId, instructorName, ...btn }: { instructorId: string; instructorName: string } & ButtonProps) {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ export function EnrollButton({ instructorId, instructorName, ...btn }: { instruc
       return;
     }
     toast.success("Demande envoyée !", { description: `${instructorName} va recevoir votre demande.` });
+    dispatchPushEvent({ data: { type: "enrollment_created", instructorId } }).catch(() => {});
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["my-request", instructorId] });
     qc.invalidateQueries({ queryKey: ["student"] });

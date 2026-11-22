@@ -1,7 +1,7 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ClipboardList, LayoutDashboard, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, LayoutDashboard, UserRound, Users, Wallet } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/DashboardShell";
 import { requireRole, useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +52,7 @@ function ProLayout() {
     { to: "/pro/planning", label: "Planning", icon: CalendarDays },
     { to: "/pro/finances", label: "Finances", icon: Wallet },
     { to: "/pro/demandes", label: "Demandes", icon: ClipboardList, ...(pending > 0 ? { badge: pending } : {}) },
+    { to: "/pro/notifications", label: "Notifications", icon: Bell },
     { to: "/pro/profil", label: "Mon profil", icon: UserRound },
   ];
 

@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtTime } from "@/lib/format";
+import { dispatchPushEvent } from "@/lib/notifications.functions";
 import { cn } from "@/lib/utils";
 import { useMyInstructor } from "../pro";
 
@@ -87,12 +88,24 @@ function PlanningPage() {
         : format(cursor, "MMMM yyyy", { locale: fr });
 
   async function setStatus(id: string, status: "completed" | "cancelled") {
+    const target = lessons.find((l) => l.id === id);
     const { error } = await supabase.from("lessons").update({ status }).eq("id", id);
     if (error) {
       toast.error("Mise à jour impossible", { description: error.message });
       return;
     }
     toast.success(status === "completed" ? "Séance marquée effectuée" : "Séance annulée");
+    if (status === "cancelled" && target) {
+      dispatchPushEvent({
+        data: {
+          type: "lesson_event",
+          action: "cancelled",
+          studentId: target.student_id,
+          startsAt: target.starts_at,
+          location: target.location,
+        },
+      }).catch(() => {});
+    }
     qc.invalidateQueries({ queryKey: ["pro-lessons"] });
   }
 
@@ -358,6 +371,18 @@ function LessonForm({
         ? `${payload.length} séances planifiées sur ${weeks} semaine${weeks > 1 ? "s" : ""}`
         : "Séance planifiée",
     );
+    if (payload[0]) {
+      dispatchPushEvent({
+        data: {
+          type: "lesson_event",
+          action: "created",
+          studentId,
+          startsAt: payload[0].starts_at,
+          location,
+          count: payload.length,
+        },
+      }).catch(() => {});
+    }
     setStudentId("");
     setRecurring(false);
     setWeeks(3);

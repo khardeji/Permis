@@ -1,7 +1,7 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Car, LayoutDashboard, Wallet } from "lucide-react";
+import { Bell, CalendarDays, Car, LayoutDashboard, Wallet } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/DashboardShell";
 import { requireRole, useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +39,7 @@ function EleveLayout() {
     { to: "/eleve/planning", label: "Mon planning", icon: CalendarDays },
     { to: "/eleve/paiements", label: "Mes paiements", icon: Wallet },
     { to: "/eleve/mon-moniteur", label: "Mon moniteur", icon: Car },
+    { to: "/eleve/notifications", label: "Notifications", icon: Bell },
   ];
 
   return (

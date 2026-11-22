@@ -9,6 +9,7 @@ import { EmptyState, PageHeader, Panel, StatusBadge } from "@/components/dashboa
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { fmtDate, fmtRelative, telLink, waLink } from "@/lib/format";
+import { dispatchPushEvent } from "@/lib/notifications.functions";
 import { useMyInstructor } from "../pro";
 
 export const Route = createFileRoute("/_authenticated/pro/demandes")({
@@ -55,6 +56,7 @@ function RequestsPage() {
     toast.success(accept ? "Élève accepté 🎉" : "Demande refusée", {
       description: accept ? `${req.full_name} apparaît maintenant dans vos élèves.` : undefined,
     });
+    dispatchPushEvent({ data: { type: "enrollment_decided", requestId: req.id, accepted: accept } }).catch(() => {});
     qc.invalidateQueries({ queryKey: ["pro-requests"] });
     qc.invalidateQueries({ queryKey: ["pending-requests"] });
     qc.invalidateQueries({ queryKey: ["pro-students"] });

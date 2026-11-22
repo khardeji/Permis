@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { PageHeader, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDT, fmtDate } from "@/lib/format";
+import { dispatchPushEvent } from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/moniteurs")({
   head: () => workspaceHead("Moniteurs — Administration"),
@@ -43,6 +44,7 @@ function AdminInstructors() {
       return;
     }
     toast.success(status === "active" ? "Moniteur activé" : "Moniteur suspendu");
+    dispatchPushEvent({ data: { type: "instructor_status_changed", instructorId: id, status } }).catch(() => {});
     qc.invalidateQueries({ queryKey: ["admin-instructors"] });
   }
 

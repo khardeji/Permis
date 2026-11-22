@@ -823,3 +823,206 @@ GRANT EXECUTE ON FUNCTION public.get_public_stats() TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- 12. Notifications Push (FCM), préférences et rappels automatiques 1h avant les séances
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'general';
+
+ALTER TABLE public.lessons
+  ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS public.fcm_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role public.app_role NOT NULL,
+  token text NOT NULL UNIQUE,
+  device_label text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.notification_preferences (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  push_enabled boolean NOT NULL DEFAULT true,
+  enrollments boolean NOT NULL DEFAULT true,
+  lessons boolean NOT NULL DEFAULT true,
+  reminders boolean NOT NULL DEFAULT true,
+  admin_alerts boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user ON public.fcm_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_reminder_due
+  ON public.lessons(starts_at)
+  WHERE status = 'scheduled' AND reminder_sent_at IS NULL;
+
+ALTER TABLE public.fcm_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "fcm_tokens_manage_own" ON public.fcm_tokens;
+CREATE POLICY "fcm_tokens_manage_own" ON public.fcm_tokens
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "notification_preferences_manage_own" ON public.notification_preferences;
+CREATE POLICY "notification_preferences_manage_own" ON public.notification_preferences
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+-- Réinitialiser le rappel si la date/heure d'une séance change
+CREATE OR REPLACE FUNCTION public.reset_lesson_reminder()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.starts_at IS DISTINCT FROM OLD.starts_at OR NEW.status = 'cancelled' THEN
+    NEW.reminder_sent_at := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_lesson_rescheduled ON public.lessons;
+CREATE TRIGGER on_lesson_rescheduled
+  BEFORE UPDATE ON public.lessons
+  FOR EACH ROW EXECUTE FUNCTION public.reset_lesson_reminder();
+
+-- Notifications in-app automatiques pour les événements clés
+CREATE OR REPLACE FUNCTION public.notify_instructor_events()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    SELECT ur.user_id,
+           'Nouvelle demande de partenariat',
+           NEW.first_name || ' ' || NEW.last_name || ' (' || coalesce(NEW.city, '') || ') souhaite rejoindre PermiConduit.',
+           '/admin/moniteurs',
+           'admin'
+    FROM public.user_roles ur
+    WHERE ur.role = 'admin';
+  ELSIF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status AND NEW.user_id IS NOT NULL THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    VALUES (
+      NEW.user_id,
+      CASE WHEN NEW.status = 'active' THEN 'Profil partenaire validé !' ELSE 'Statut du profil mis à jour' END,
+      CASE WHEN NEW.status = 'active' THEN 'Votre profil est maintenant visible dans l''annuaire PermiConduit.'
+           ELSE 'Votre profil a été suspendu par l''administration.' END,
+      '/pro',
+      'admin'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_instructor_events_notify ON public.instructors;
+CREATE TRIGGER on_instructor_events_notify
+  AFTER INSERT OR UPDATE ON public.instructors
+  FOR EACH ROW EXECUTE FUNCTION public.notify_instructor_events();
+
+CREATE OR REPLACE FUNCTION public.notify_enrollment_created()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_instr_user_id uuid;
+  v_instr_name text;
+BEGIN
+  SELECT user_id, first_name || ' ' || last_name INTO v_instr_user_id, v_instr_name
+  FROM public.instructors WHERE id = NEW.instructor_id;
+
+  IF v_instr_user_id IS NOT NULL THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    VALUES (
+      v_instr_user_id,
+      'Nouvelle demande d''inscription',
+      NEW.full_name || ' souhaite apprendre la conduite avec vous.',
+      '/pro/demandes',
+      'enrollments'
+    );
+  END IF;
+
+  INSERT INTO public.notifications (user_id, title, body, link, category)
+  VALUES (
+    NEW.student_user_id,
+    'Demande d''inscription envoyée',
+    'Votre demande a été transmise à ' || coalesce(v_instr_name, 'votre moniteur') || '.',
+    '/eleve',
+    'enrollments'
+  );
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_enrollment_created_notify ON public.enrollment_requests;
+CREATE TRIGGER on_enrollment_created_notify
+  AFTER INSERT ON public.enrollment_requests
+  FOR EACH ROW EXECUTE FUNCTION public.notify_enrollment_created();
+
+CREATE OR REPLACE FUNCTION public.notify_lesson_events()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_user_id uuid;
+  v_license text;
+  v_instr_name text;
+  v_when text;
+BEGIN
+  SELECT user_id, license_type INTO v_student_user_id, v_license
+  FROM public.students WHERE id = NEW.student_id;
+  IF v_student_user_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT first_name || ' ' || last_name INTO v_instr_name
+  FROM public.instructors WHERE id = NEW.instructor_id;
+
+  v_when := to_char(NEW.starts_at AT TIME ZONE 'Africa/Tunis', 'DD/MM à HH24:MI');
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    VALUES (
+      v_student_user_id,
+      'Nouvelle séance programmée',
+      coalesce(v_instr_name, 'Votre moniteur') || ' a programmé une séance le ' || v_when ||
+      coalesce(' · ' || nullif(NEW.location, ''), ''),
+      '/eleve/planning',
+      'lessons'
+    );
+  ELSIF TG_OP = 'UPDATE' AND NEW.status = 'cancelled' AND OLD.status <> 'cancelled' THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    VALUES (
+      v_student_user_id,
+      'Séance annulée',
+      'Votre séance du ' || v_when || ' avec ' || coalesce(v_instr_name, 'votre moniteur') || ' a été annulée.',
+      '/eleve/planning',
+      'lessons'
+    );
+  ELSIF TG_OP = 'UPDATE' AND (NEW.starts_at IS DISTINCT FROM OLD.starts_at OR NEW.location IS DISTINCT FROM OLD.location) THEN
+    INSERT INTO public.notifications (user_id, title, body, link, category)
+    VALUES (
+      v_student_user_id,
+      'Séance modifiée',
+      'Nouvel horaire avec ' || coalesce(v_instr_name, 'votre moniteur') || ' : ' || v_when ||
+      coalesce(' · ' || nullif(NEW.location, ''), ''),
+      '/eleve/planning',
+      'lessons'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_lesson_events_notify ON public.lessons;
+CREATE TRIGGER on_lesson_events_notify
+  AFTER INSERT OR UPDATE ON public.lessons
+  FOR EACH ROW EXECUTE FUNCTION public.notify_lesson_events();
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.fcm_tokens, public.notification_preferences TO authenticated;

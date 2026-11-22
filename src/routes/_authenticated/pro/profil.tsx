@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, Panel } from "@/components/dashboard/DashboardShell";
+import { NotificationSettingsCard } from "@/components/dashboard/NotificationCenter";
 import {
   AvailabilityEditor,
   availabilityToSchedule,
@@ -279,6 +280,10 @@ function ProfilePage() {
             </div>
           )}
         </Panel>
+      </div>
+
+      <div className="mt-8">
+        <NotificationSettingsCard role="instructor" />
       </div>
     </>
   );

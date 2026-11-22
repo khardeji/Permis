@@ -29,17 +29,21 @@ import { Route as AuthenticatedAdminDemandesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminElevesRouteImport } from './routes/_authenticated/admin/eleves'
 import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin/messages'
 import { Route as AuthenticatedAdminMoniteursRouteImport } from './routes/_authenticated/admin/moniteurs'
+import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminSignalementsRouteImport } from './routes/_authenticated/admin/signalements'
 import { Route as AuthenticatedEleveIndexRouteImport } from './routes/_authenticated/eleve/index'
 import { Route as AuthenticatedEleveMonMoniteurRouteImport } from './routes/_authenticated/eleve/mon-moniteur'
+import { Route as AuthenticatedEleveNotificationsRouteImport } from './routes/_authenticated/eleve/notifications'
 import { Route as AuthenticatedElevePaiementsRouteImport } from './routes/_authenticated/eleve/paiements'
 import { Route as AuthenticatedElevePlanningRouteImport } from './routes/_authenticated/eleve/planning'
 import { Route as AuthenticatedProIndexRouteImport } from './routes/_authenticated/pro/index'
 import { Route as AuthenticatedProDemandesRouteImport } from './routes/_authenticated/pro/demandes'
 import { Route as AuthenticatedProElevesRouteImport } from './routes/_authenticated/pro/eleves'
 import { Route as AuthenticatedProFinancesRouteImport } from './routes/_authenticated/pro/finances'
+import { Route as AuthenticatedProNotificationsRouteImport } from './routes/_authenticated/pro/notifications'
 import { Route as AuthenticatedProPlanningRouteImport } from './routes/_authenticated/pro/planning'
 import { Route as AuthenticatedProProfilRouteImport } from './routes/_authenticated/pro/profil'
+import { Route as ApiCronLessonRemindersRouteImport } from './routes/api/cron/lesson-reminders'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -144,6 +148,12 @@ const AuthenticatedAdminMoniteursRoute =
     path: '/moniteurs',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminNotificationsRoute =
+  AuthenticatedAdminNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSignalementsRoute =
   AuthenticatedAdminSignalementsRouteImport.update({
     id: '/signalements',
@@ -159,6 +169,12 @@ const AuthenticatedEleveMonMoniteurRoute =
   AuthenticatedEleveMonMoniteurRouteImport.update({
     id: '/mon-moniteur',
     path: '/mon-moniteur',
+    getParentRoute: () => AuthenticatedEleveRoute,
+  } as any)
+const AuthenticatedEleveNotificationsRoute =
+  AuthenticatedEleveNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
     getParentRoute: () => AuthenticatedEleveRoute,
   } as any)
 const AuthenticatedElevePaiementsRoute =
@@ -195,6 +211,12 @@ const AuthenticatedProFinancesRoute =
     path: '/finances',
     getParentRoute: () => AuthenticatedProRoute,
   } as any)
+const AuthenticatedProNotificationsRoute =
+  AuthenticatedProNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedProRoute,
+  } as any)
 const AuthenticatedProPlanningRoute =
   AuthenticatedProPlanningRouteImport.update({
     id: '/planning',
@@ -205,6 +227,11 @@ const AuthenticatedProProfilRoute = AuthenticatedProProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
   getParentRoute: () => AuthenticatedProRoute,
+} as any)
+const ApiCronLessonRemindersRoute = ApiCronLessonRemindersRouteImport.update({
+  id: '/api/cron/lesson-reminders',
+  path: '/api/cron/lesson-reminders',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -226,15 +253,19 @@ export interface FileRoutesByFullPath {
   '/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/moniteurs': typeof AuthenticatedAdminMoniteursRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/signalements': typeof AuthenticatedAdminSignalementsRoute
   '/eleve/mon-moniteur': typeof AuthenticatedEleveMonMoniteurRoute
+  '/eleve/notifications': typeof AuthenticatedEleveNotificationsRoute
   '/eleve/paiements': typeof AuthenticatedElevePaiementsRoute
   '/eleve/planning': typeof AuthenticatedElevePlanningRoute
   '/pro/demandes': typeof AuthenticatedProDemandesRoute
   '/pro/eleves': typeof AuthenticatedProElevesRoute
   '/pro/finances': typeof AuthenticatedProFinancesRoute
+  '/pro/notifications': typeof AuthenticatedProNotificationsRoute
   '/pro/planning': typeof AuthenticatedProPlanningRoute
   '/pro/profil': typeof AuthenticatedProProfilRoute
+  '/api/cron/lesson-reminders': typeof ApiCronLessonRemindersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/eleve/': typeof AuthenticatedEleveIndexRoute
   '/pro/': typeof AuthenticatedProIndexRoute
@@ -255,15 +286,19 @@ export interface FileRoutesByTo {
   '/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/moniteurs': typeof AuthenticatedAdminMoniteursRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/signalements': typeof AuthenticatedAdminSignalementsRoute
   '/eleve/mon-moniteur': typeof AuthenticatedEleveMonMoniteurRoute
+  '/eleve/notifications': typeof AuthenticatedEleveNotificationsRoute
   '/eleve/paiements': typeof AuthenticatedElevePaiementsRoute
   '/eleve/planning': typeof AuthenticatedElevePlanningRoute
   '/pro/demandes': typeof AuthenticatedProDemandesRoute
   '/pro/eleves': typeof AuthenticatedProElevesRoute
   '/pro/finances': typeof AuthenticatedProFinancesRoute
+  '/pro/notifications': typeof AuthenticatedProNotificationsRoute
   '/pro/planning': typeof AuthenticatedProPlanningRoute
   '/pro/profil': typeof AuthenticatedProProfilRoute
+  '/api/cron/lesson-reminders': typeof ApiCronLessonRemindersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/eleve': typeof AuthenticatedEleveIndexRoute
   '/pro': typeof AuthenticatedProIndexRoute
@@ -289,15 +324,19 @@ export interface FileRoutesById {
   '/_authenticated/admin/eleves': typeof AuthenticatedAdminElevesRoute
   '/_authenticated/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/_authenticated/admin/moniteurs': typeof AuthenticatedAdminMoniteursRoute
+  '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/signalements': typeof AuthenticatedAdminSignalementsRoute
   '/_authenticated/eleve/mon-moniteur': typeof AuthenticatedEleveMonMoniteurRoute
+  '/_authenticated/eleve/notifications': typeof AuthenticatedEleveNotificationsRoute
   '/_authenticated/eleve/paiements': typeof AuthenticatedElevePaiementsRoute
   '/_authenticated/eleve/planning': typeof AuthenticatedElevePlanningRoute
   '/_authenticated/pro/demandes': typeof AuthenticatedProDemandesRoute
   '/_authenticated/pro/eleves': typeof AuthenticatedProElevesRoute
   '/_authenticated/pro/finances': typeof AuthenticatedProFinancesRoute
+  '/_authenticated/pro/notifications': typeof AuthenticatedProNotificationsRoute
   '/_authenticated/pro/planning': typeof AuthenticatedProPlanningRoute
   '/_authenticated/pro/profil': typeof AuthenticatedProProfilRoute
+  '/api/cron/lesson-reminders': typeof ApiCronLessonRemindersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/eleve/': typeof AuthenticatedEleveIndexRoute
   '/_authenticated/pro/': typeof AuthenticatedProIndexRoute
@@ -323,15 +362,19 @@ export interface FileRouteTypes {
     | '/admin/eleves'
     | '/admin/messages'
     | '/admin/moniteurs'
+    | '/admin/notifications'
     | '/admin/signalements'
     | '/eleve/mon-moniteur'
+    | '/eleve/notifications'
     | '/eleve/paiements'
     | '/eleve/planning'
     | '/pro/demandes'
     | '/pro/eleves'
     | '/pro/finances'
+    | '/pro/notifications'
     | '/pro/planning'
     | '/pro/profil'
+    | '/api/cron/lesson-reminders'
     | '/admin/'
     | '/eleve/'
     | '/pro/'
@@ -352,15 +395,19 @@ export interface FileRouteTypes {
     | '/admin/eleves'
     | '/admin/messages'
     | '/admin/moniteurs'
+    | '/admin/notifications'
     | '/admin/signalements'
     | '/eleve/mon-moniteur'
+    | '/eleve/notifications'
     | '/eleve/paiements'
     | '/eleve/planning'
     | '/pro/demandes'
     | '/pro/eleves'
     | '/pro/finances'
+    | '/pro/notifications'
     | '/pro/planning'
     | '/pro/profil'
+    | '/api/cron/lesson-reminders'
     | '/admin'
     | '/eleve'
     | '/pro'
@@ -385,15 +432,19 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/eleves'
     | '/_authenticated/admin/messages'
     | '/_authenticated/admin/moniteurs'
+    | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/signalements'
     | '/_authenticated/eleve/mon-moniteur'
+    | '/_authenticated/eleve/notifications'
     | '/_authenticated/eleve/paiements'
     | '/_authenticated/eleve/planning'
     | '/_authenticated/pro/demandes'
     | '/_authenticated/pro/eleves'
     | '/_authenticated/pro/finances'
+    | '/_authenticated/pro/notifications'
     | '/_authenticated/pro/planning'
     | '/_authenticated/pro/profil'
+    | '/api/cron/lesson-reminders'
     | '/_authenticated/admin/'
     | '/_authenticated/eleve/'
     | '/_authenticated/pro/'
@@ -410,6 +461,7 @@ export interface RootRouteChildren {
   MoniteursRoute: typeof MoniteursRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   MoniteurSlugRoute: typeof MoniteurSlugRoute
+  ApiCronLessonRemindersRoute: typeof ApiCronLessonRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -554,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMoniteursRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/notifications': {
+      id: '/_authenticated/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/signalements': {
       id: '/_authenticated/admin/signalements'
       path: '/signalements'
@@ -573,6 +632,13 @@ declare module '@tanstack/react-router' {
       path: '/mon-moniteur'
       fullPath: '/eleve/mon-moniteur'
       preLoaderRoute: typeof AuthenticatedEleveMonMoniteurRouteImport
+      parentRoute: typeof AuthenticatedEleveRoute
+    }
+    '/_authenticated/eleve/notifications': {
+      id: '/_authenticated/eleve/notifications'
+      path: '/notifications'
+      fullPath: '/eleve/notifications'
+      preLoaderRoute: typeof AuthenticatedEleveNotificationsRouteImport
       parentRoute: typeof AuthenticatedEleveRoute
     }
     '/_authenticated/eleve/paiements': {
@@ -617,6 +683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProFinancesRouteImport
       parentRoute: typeof AuthenticatedProRoute
     }
+    '/_authenticated/pro/notifications': {
+      id: '/_authenticated/pro/notifications'
+      path: '/notifications'
+      fullPath: '/pro/notifications'
+      preLoaderRoute: typeof AuthenticatedProNotificationsRouteImport
+      parentRoute: typeof AuthenticatedProRoute
+    }
     '/_authenticated/pro/planning': {
       id: '/_authenticated/pro/planning'
       path: '/planning'
@@ -631,6 +704,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProProfilRouteImport
       parentRoute: typeof AuthenticatedProRoute
     }
+    '/api/cron/lesson-reminders': {
+      id: '/api/cron/lesson-reminders'
+      path: '/api/cron/lesson-reminders'
+      fullPath: '/api/cron/lesson-reminders'
+      preLoaderRoute: typeof ApiCronLessonRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -640,6 +720,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminElevesRoute: typeof AuthenticatedAdminElevesRoute
   AuthenticatedAdminMessagesRoute: typeof AuthenticatedAdminMessagesRoute
   AuthenticatedAdminMoniteursRoute: typeof AuthenticatedAdminMoniteursRoute
+  AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminSignalementsRoute: typeof AuthenticatedAdminSignalementsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -650,6 +731,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminElevesRoute: AuthenticatedAdminElevesRoute,
   AuthenticatedAdminMessagesRoute: AuthenticatedAdminMessagesRoute,
   AuthenticatedAdminMoniteursRoute: AuthenticatedAdminMoniteursRoute,
+  AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminSignalementsRoute: AuthenticatedAdminSignalementsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
@@ -659,6 +741,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedEleveRouteChildren {
   AuthenticatedEleveMonMoniteurRoute: typeof AuthenticatedEleveMonMoniteurRoute
+  AuthenticatedEleveNotificationsRoute: typeof AuthenticatedEleveNotificationsRoute
   AuthenticatedElevePaiementsRoute: typeof AuthenticatedElevePaiementsRoute
   AuthenticatedElevePlanningRoute: typeof AuthenticatedElevePlanningRoute
   AuthenticatedEleveIndexRoute: typeof AuthenticatedEleveIndexRoute
@@ -666,6 +749,7 @@ interface AuthenticatedEleveRouteChildren {
 
 const AuthenticatedEleveRouteChildren: AuthenticatedEleveRouteChildren = {
   AuthenticatedEleveMonMoniteurRoute: AuthenticatedEleveMonMoniteurRoute,
+  AuthenticatedEleveNotificationsRoute: AuthenticatedEleveNotificationsRoute,
   AuthenticatedElevePaiementsRoute: AuthenticatedElevePaiementsRoute,
   AuthenticatedElevePlanningRoute: AuthenticatedElevePlanningRoute,
   AuthenticatedEleveIndexRoute: AuthenticatedEleveIndexRoute,
@@ -678,6 +762,7 @@ interface AuthenticatedProRouteChildren {
   AuthenticatedProDemandesRoute: typeof AuthenticatedProDemandesRoute
   AuthenticatedProElevesRoute: typeof AuthenticatedProElevesRoute
   AuthenticatedProFinancesRoute: typeof AuthenticatedProFinancesRoute
+  AuthenticatedProNotificationsRoute: typeof AuthenticatedProNotificationsRoute
   AuthenticatedProPlanningRoute: typeof AuthenticatedProPlanningRoute
   AuthenticatedProProfilRoute: typeof AuthenticatedProProfilRoute
   AuthenticatedProIndexRoute: typeof AuthenticatedProIndexRoute
@@ -687,6 +772,7 @@ const AuthenticatedProRouteChildren: AuthenticatedProRouteChildren = {
   AuthenticatedProDemandesRoute: AuthenticatedProDemandesRoute,
   AuthenticatedProElevesRoute: AuthenticatedProElevesRoute,
   AuthenticatedProFinancesRoute: AuthenticatedProFinancesRoute,
+  AuthenticatedProNotificationsRoute: AuthenticatedProNotificationsRoute,
   AuthenticatedProPlanningRoute: AuthenticatedProPlanningRoute,
   AuthenticatedProProfilRoute: AuthenticatedProProfilRoute,
   AuthenticatedProIndexRoute: AuthenticatedProIndexRoute,
@@ -723,6 +809,7 @@ const rootRouteChildren: RootRouteChildren = {
   MoniteursRoute: MoniteursRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   MoniteurSlugRoute: MoniteurSlugRoute,
+  ApiCronLessonRemindersRoute: ApiCronLessonRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

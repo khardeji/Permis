@@ -1,7 +1,7 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, Flag, GraduationCap, LayoutDashboard, Mail, MessageSquareQuote, Users } from "lucide-react";
+import { Bell, ClipboardList, Flag, GraduationCap, LayoutDashboard, Mail, MessageSquareQuote, Users } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/DashboardShell";
 import { requireRole, useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ function AdminLayout() {
     { to: "/admin/signalements", label: "Signalements", icon: Flag, ...(counts && counts.reports > 0 ? { badge: counts.reports } : {}) },
     { to: "/admin/avis", label: "Avis", icon: MessageSquareQuote },
     { to: "/admin/messages", label: "Messages", icon: Mail },
+    { to: "/admin/notifications", label: "Notifications", icon: Bell },
   ];
 
   return (
