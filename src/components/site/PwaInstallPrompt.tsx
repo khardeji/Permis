@@ -42,7 +42,8 @@ export function PwaInstallPrompt() {
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Utiliser un seul Service Worker à la racine pour PWA + Firebase Cloud Messaging
+      navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(() => {
         // Ignore registration errors in unsupported environments
       });
     }

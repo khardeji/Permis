@@ -2,6 +2,18 @@
 importScripts("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js");
 
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", () => {
+  // Pass-through pour assurer l'installabilité PWA sans interférer avec le SSR / Supabase
+});
+
 firebase.initializeApp({
   apiKey: "AIzaSyBf8hxS3aI1XZu2D7TtWGqUiLUc74vQkKo",
   authDomain: "permis-b60c9.firebaseapp.com",
@@ -14,8 +26,11 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || payload.data?.title || "PermiConduit";
-  const body = payload.notification?.body || payload.data?.body || "";
+  // Si payload.notification est présent, FCM l'affiche déjà nativement.
+  // On affiche manuellement uniquement pour les payloads data-only.
+  if (payload.notification?.title) return;
+  const title = payload.data?.title || "PermiConduit";
+  const body = payload.data?.body || "";
   const link = payload.data?.link || "/";
 
   self.registration.showNotification(title, {
@@ -28,7 +43,10 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.link || "/";
+  const targetUrl =
+    event.notification?.data?.link ||
+    event.notification?.data?.FCM_MSG?.data?.link ||
+    "/";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {

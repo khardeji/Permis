@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, BellOff, BellRing, Check, CheckCheck, Loader2, Smartphone, Trash2 } from "lucide-react";
+import { Bell, BellOff, BellRing, Check, CheckCheck, Loader2, Send, Smartphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState, PageHeader, Panel } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, type Role } from "@/lib/auth";
+import { useAuth, useRoles, type Role } from "@/lib/auth";
 import { detectDeviceLabel, isPushSupported, requestFcmToken } from "@/lib/firebase-web";
+import { sendTestPush } from "@/lib/notifications.functions";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +59,7 @@ export function NotificationSettingsCard({ role }: { role: Role }) {
   const qc = useQueryClient();
   const [supported, setSupported] = useState<boolean | null>(null);
   const [enabling, setEnabling] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     isPushSupported().then(setSupported);
@@ -141,6 +151,26 @@ export function NotificationSettingsCard({ role }: { role: Role }) {
     }
   }
 
+  async function testPush() {
+    setTesting(true);
+    try {
+      const res = await sendTestPush();
+      if (res.sent > 0) {
+        toast.success(`Notification test envoyée (${res.sent} appareil${res.sent > 1 ? "s" : ""}) !`);
+      } else {
+        toast.error("Aucune notification envoyée", {
+          description: res.error || "Vérifiez que cet appareil est bien activé.",
+        });
+      }
+    } catch (err) {
+      toast.error("Échec du test Push", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   async function removeDevice(id: string) {
     const { error } = await (supabase as unknown as { from: (t: string) => any })
       .from("fcm_tokens")
@@ -207,6 +237,12 @@ export function NotificationSettingsCard({ role }: { role: Role }) {
                   <Button type="button" size="sm" variant="brand" disabled={enabling} onClick={enablePushOnDevice}>
                     {enabling ? <Loader2 className="animate-spin" /> : <Bell />}
                     Activer sur cet appareil
+                  </Button>
+                )}
+                {tokens.length > 0 && (
+                  <Button type="button" size="sm" variant="outline" disabled={testing} onClick={testPush}>
+                    {testing ? <Loader2 className="animate-spin" /> : <Send className="size-3.5" />}
+                    Envoyer un test
                   </Button>
                 )}
               </div>
@@ -416,5 +452,106 @@ export function NotificationsPageView({ role }: { role: Role }) {
         </div>
       </div>
     </>
+  );
+}
+
+const PROMPT_DISMISS_KEY = "permiconduit_push_prompt_dismissed_v1";
+
+export function NotificationPermissionPrompt() {
+  const { user } = useAuth();
+  const { data: roles = [] } = useRoles();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const primaryRole: Role = roles.includes("admin")
+    ? "admin"
+    : roles.includes("instructor")
+      ? "instructor"
+      : "student";
+
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    if (!("Notification" in window) || Notification.permission !== "default") return;
+    try {
+      if (sessionStorage.getItem(PROMPT_DISMISS_KEY) === "1") return;
+    } catch {
+      // ignore
+    }
+    isPushSupported().then((ok) => {
+      if (ok && Notification.permission === "default") {
+        setOpen(true);
+      }
+    });
+  }, [user]);
+
+  function dismiss() {
+    setOpen(false);
+    try {
+      sessionStorage.setItem(PROMPT_DISMISS_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }
+
+  async function accept() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      const res = await requestFcmToken();
+      if (!res.token) {
+        toast.error("Activation impossible", { description: res.reason });
+        setOpen(false);
+        return;
+      }
+      const { error } = await (supabase as unknown as { from: (t: string) => any })
+        .from("fcm_tokens")
+        .upsert(
+          {
+            user_id: user.id,
+            role: primaryRole,
+            token: res.token,
+            device_label: detectDeviceLabel(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "token" },
+        );
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["fcm-tokens", user.id] });
+      toast.success("Notifications activées sur cet appareil !");
+      setOpen(false);
+    } catch (err) {
+      toast.error("Erreur lors de l'activation", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && dismiss()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <div className="mb-2 grid size-12 place-items-center rounded-2xl bg-brand-soft text-brand">
+            <BellRing className="size-6" />
+          </div>
+          <DialogTitle>Activer les notifications PermiConduit ?</DialogTitle>
+          <DialogDescription>
+            Recevez vos rappels 1 heure avant chaque séance, les nouvelles demandes d'inscription et les mises à jour
+            importantes directement sur votre appareil, même lorsque l'application est fermée.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-2 gap-2 sm:gap-2">
+          <Button type="button" variant="outline" onClick={dismiss} disabled={busy}>
+            Plus tard
+          </Button>
+          <Button type="button" variant="brand" onClick={accept} disabled={busy}>
+            {busy ? <Loader2 className="animate-spin" /> : <Bell />}
+            Autoriser les notifications
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

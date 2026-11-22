@@ -12,10 +12,13 @@ type ServiceAccount = {
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
 
 function getServiceAccount(): ServiceAccount | null {
-  const rawJson = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
+  const rawJson = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"]?.trim();
   if (rawJson) {
     try {
-      const parsed = JSON.parse(rawJson) as Partial<ServiceAccount>;
+      const cleaned = rawJson.startsWith("'") && rawJson.endsWith("'")
+        ? rawJson.slice(1, -1)
+        : rawJson;
+      const parsed = JSON.parse(cleaned) as Partial<ServiceAccount>;
       if (parsed.project_id && parsed.client_email && parsed.private_key) {
         return {
           project_id: parsed.project_id,
@@ -23,8 +26,8 @@ function getServiceAccount(): ServiceAccount | null {
           private_key: parsed.private_key.replace(/\\n/g, "\n"),
         };
       }
-    } catch {
-      console.error("[FCM] Invalid FIREBASE_SERVICE_ACCOUNT_JSON");
+    } catch (e) {
+      console.error("[FCM] Invalid FIREBASE_SERVICE_ACCOUNT_JSON:", e);
     }
   }
 
@@ -127,7 +130,7 @@ export async function sendPushToUsers(params: {
   link?: string;
   category: NotificationCategory;
   insertInApp?: boolean;
-}): Promise<{ sent: number; failed: number; pruned: number }> {
+}): Promise<{ sent: number; failed: number; pruned: number; error?: string }> {
   const uniqueIds = [...new Set(params.userIds.filter(Boolean))];
   if (uniqueIds.length === 0) return { sent: 0, failed: 0, pruned: 0 };
 
@@ -147,7 +150,7 @@ export async function sendPushToUsers(params: {
 
   const sa = getServiceAccount();
   if (!sa) {
-    return { sent: 0, failed: 0, pruned: 0 };
+    return { sent: 0, failed: 0, pruned: 0, error: "FIREBASE_SERVICE_ACCOUNT_JSON manquant ou invalide côté serveur." };
   }
 
   const [{ data: prefs }, { data: tokens }] = await Promise.all([
@@ -163,13 +166,16 @@ export async function sendPushToUsers(params: {
     (t) => isCategoryAllowed(prefMap.get(t.user_id), params.category),
   );
 
-  if (eligibleTokens.length === 0) return { sent: 0, failed: 0, pruned: 0 };
+  if (eligibleTokens.length === 0) {
+    return { sent: 0, failed: 0, pruned: 0, error: "Aucun appareil actif pour cet utilisateur." };
+  }
 
   const accessToken = await getGoogleAccessToken(sa);
   const endpoint = `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
 
   let sent = 0;
   let failed = 0;
+  let lastError: string | undefined;
   const deadTokenIds: string[] = [];
 
   await Promise.all(
@@ -195,12 +201,18 @@ export async function sendPushToUsers(params: {
                 category: params.category,
               },
               webpush: {
+                headers: {
+                  Urgency: "high",
+                },
                 fcm_options: {
                   link: params.link ?? "/",
                 },
                 notification: {
+                  title: params.title,
+                  body: params.body,
                   icon: "/logo-mark.png",
                   badge: "/favicon.png",
+                  requireInteraction: false,
                 },
               },
             },
@@ -212,12 +224,15 @@ export async function sendPushToUsers(params: {
         } else {
           failed++;
           const errText = await res.text();
+          lastError = errText.slice(0, 200);
+          console.error("[FCM] Send failed:", errText);
           if (errText.includes("UNREGISTERED") || errText.includes("INVALID_ARGUMENT")) {
             deadTokenIds.push(entry.id);
           }
         }
-      } catch {
+      } catch (e) {
         failed++;
+        lastError = e instanceof Error ? e.message : "Network error";
       }
     }),
   );
@@ -226,5 +241,5 @@ export async function sendPushToUsers(params: {
     await admin.from("fcm_tokens").delete().in("id", deadTokenIds);
   }
 
-  return { sent, failed, pruned: deadTokenIds.length };
+  return { sent, failed, pruned: deadTokenIds.length, ...(lastError ? { error: lastError } : {}) };
 }

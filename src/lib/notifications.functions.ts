@@ -173,3 +173,16 @@ export const dispatchPushEvent = createServerFn({ method: "POST" })
       return { ok: false };
     }
   });
+
+export const sendTestPush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { sendPushToUsers } = await import("@/lib/fcm.server");
+    return sendPushToUsers({
+      userIds: [context.userId],
+      title: "Test PermiConduit",
+      body: "Les notifications Push fonctionnent correctement sur cet appareil !",
+      link: "/espace",
+      category: "general",
+    });
+  });

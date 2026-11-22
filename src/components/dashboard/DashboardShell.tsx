@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/site/Logo";
 import { NotificationsBell } from "./NotificationsBell";
+import { NotificationPermissionPrompt } from "./NotificationCenter";
 import { supabase } from "@/integrations/supabase/client";
 import { initials } from "@/lib/format";
 
@@ -100,6 +101,7 @@ export function DashboardShell({
           <NotificationsBell />
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</main>
+        <NotificationPermissionPrompt />
       </div>
     </div>
   );
