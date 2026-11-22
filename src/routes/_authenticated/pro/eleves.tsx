@@ -1,7 +1,7 @@
 import { workspaceHead } from "@/lib/workspace-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Loader2, Pencil, Plus, Users, Wallet } from "lucide-react";
+import { AlertCircle, Award, CheckCircle2, Loader2, Pencil, Plus, Users, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,12 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, PageHeader, StatusBadge } from "@/components/dashboard/DashboardShell";
+import { EmptyState, PageHeader, StatCard, StatusBadge } from "@/components/dashboard/DashboardShell";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { remaining, splitHours, totalDue, totalPaid } from "@/lib/finance";
 import { formatDT, fmtHours, telLink, waLink } from "@/lib/format";
 import { CITIES } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import { useMyInstructor } from "../pro";
 
 export const Route = createFileRoute("/_authenticated/pro/eleves")({
@@ -25,6 +26,9 @@ export const Route = createFileRoute("/_authenticated/pro/eleves")({
 });
 
 type Student = Tables<"students">;
+type StatusFilter = "all" | "ongoing" | "completed";
+type PaymentFilter = "all" | "paid" | "unpaid";
+
 const LICENSES = ["B (voiture)", "A (moto)", "A1 (moto légère)", "C (poids lourd)"];
 const METHODS = ["Espèces", "Virement", "Chèque", "Carte", "Autre"];
 
@@ -34,6 +38,8 @@ function StudentsPage() {
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [payStudent, setPayStudent] = useState<Student | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["pro-students", instructor?.id],
@@ -56,8 +62,41 @@ function StudentsPage() {
     const less = (data?.lessons ?? []).filter((l) => l.student_id === s.id);
     const hours = splitHours(less);
     const due = totalDue(hours.done, hourlyRate);
-    return { s, paid: totalPaid(pays), due, left: remaining(due, pays), hours };
+    const paid = totalPaid(pays);
+    const left = remaining(due, pays);
+    const isPaid = left <= 0;
+    return { s, paid, due, left, isPaid, hours };
   });
+
+  const ongoingCount = rows.filter((r) => r.s.status !== "completed").length;
+  const completedRows = rows.filter((r) => r.s.status === "completed");
+  const completedPaidCount = completedRows.filter((r) => r.isPaid).length;
+  const completedUnpaidRows = completedRows.filter((r) => !r.isPaid);
+  const completedUnpaidTotal = completedUnpaidRows.reduce((sum, r) => sum + r.left, 0);
+
+  const filtered = rows.filter((r) => {
+    if (statusFilter === "ongoing" && r.s.status === "completed") return false;
+    if (statusFilter === "completed" && r.s.status !== "completed") return false;
+    if (paymentFilter === "paid" && !r.isPaid) return false;
+    if (paymentFilter === "unpaid" && r.isPaid) return false;
+    return true;
+  });
+
+  async function markCompleted(student: Student) {
+    const { error } = await supabase
+      .from("students")
+      .update({ status: "completed" })
+      .eq("id", student.id);
+    if (error) {
+      toast.error("Mise à jour impossible", { description: error.message });
+      return;
+    }
+    toast.success("Félicitations !", {
+      description: `${student.full_name} est marqué comme terminé (permis obtenu).`,
+    });
+    qc.invalidateQueries({ queryKey: ["pro-students"] });
+    qc.invalidateQueries({ queryKey: ["pro-students-list"] });
+  }
 
   return (
     <>
@@ -66,7 +105,7 @@ function StudentsPage() {
         subtitle={
           hourlyRate > 0
             ? `Suivi automatique basé sur votre tarif horaire : ${formatDT(hourlyRate)}/h.`
-            : "Suivez les heures effectuées et les paiements de chaque élève."
+            : "Suivez les heures effectuées, les permis obtenus et les paiements de chaque élève."
         }
         actions={
           <Button onClick={() => setAddOpen(true)}>
@@ -87,6 +126,73 @@ function StudentsPage() {
         </Alert>
       )}
 
+      {rows.length > 0 && (
+        <>
+          <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Élèves en cours" value={ongoingCount} icon={Users} />
+            <StatCard label="Terminés (permis obtenu)" value={completedRows.length} icon={Award} tone="brand" />
+            <StatCard label="Terminés · Payés" value={completedPaidCount} icon={CheckCircle2} tone="success" />
+            <StatCard
+              label="Terminés · Non payés"
+              value={completedUnpaidRows.length}
+              icon={Wallet}
+              tone={completedUnpaidRows.length > 0 ? "warning" : "success"}
+              hint={completedUnpaidTotal > 0 ? `Reste : ${formatDT(completedUnpaidTotal)}` : "Tout est réglé"}
+            />
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1">
+              {(
+                [
+                  ["all", `Tous (${rows.length})`],
+                  ["ongoing", `En cours (${ongoingCount})`],
+                  ["completed", `Permis obtenu (${completedRows.length})`],
+                ] as const
+              ).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStatusFilter(val)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                    statusFilter === val
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-primary",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1">
+              {(
+                [
+                  ["all", "Tous paiements"],
+                  ["paid", "Payés"],
+                  ["unpaid", "Non payés"],
+                ] as const
+              ).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setPaymentFilter(val)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                    paymentFilter === val
+                      ? "bg-brand text-brand-foreground"
+                      : "text-muted-foreground hover:text-primary",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {isLoading ? (
         <p className="py-20 text-center text-muted-foreground">Chargement…</p>
       ) : rows.length === 0 ? (
@@ -100,9 +206,26 @@ function StudentsPage() {
             </Button>
           }
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Aucun élève dans cette catégorie"
+          text="Changez de filtre pour afficher vos autres élèves."
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatusFilter("all");
+                setPaymentFilter("all");
+              }}
+            >
+              Afficher tous les élèves
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="px-5 py-3 font-medium">Élève</th>
@@ -116,7 +239,7 @@ function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ s, paid, due, left, hours }) => (
+              {filtered.map(({ s, paid, due, left, isPaid, hours }) => (
                 <tr key={s.id} className="border-b border-border last:border-0 hover:bg-secondary/40">
                   <td className="px-5 py-3">
                     <p className="font-semibold text-primary">{s.full_name}</p>
@@ -134,10 +257,40 @@ function StudentsPage() {
                   </td>
                   <td className="px-5 py-3 font-medium text-primary">{formatDT(due)}</td>
                   <td className="px-5 py-3 font-medium text-success">{formatDT(paid)}</td>
-                  <td className={`px-5 py-3 font-medium ${left > 0 ? "text-warning-foreground" : "text-muted-foreground"}`}>{formatDT(left)}</td>
-                  <td className="px-5 py-3"><StatusBadge status={s.status} /></td>
+                  <td className="px-5 py-3">
+                    <span className={`font-medium ${left > 0 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+                      {formatDT(left)}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 block w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        isPaid ? "bg-success-soft text-success" : "bg-warning-soft text-warning-foreground",
+                      )}
+                    >
+                      {isPaid ? "Payé" : "Non payé"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    {s.status === "completed" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
+                        <Award className="size-3.5" /> Permis obtenu
+                      </span>
+                    ) : (
+                      <StatusBadge status={s.status} />
+                    )}
+                  </td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-1">
+                      {s.status !== "completed" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Marquer terminé (permis obtenu)"
+                          onClick={() => markCompleted(s)}
+                        >
+                          <Award className="size-4 text-success" />
+                        </Button>
+                      )}
                       {s.phone && (
                         <Button asChild variant="ghost" size="icon" title="WhatsApp">
                           <a href={waLink(s.phone, `Bonjour ${s.full_name}, `)} target="_blank" rel="noreferrer">💬</a>
@@ -167,7 +320,10 @@ function StudentsPage() {
         }}
         instructorId={instructor?.id}
         student={editStudent}
-        onSaved={() => qc.invalidateQueries({ queryKey: ["pro-students"] })}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ["pro-students"] });
+          qc.invalidateQueries({ queryKey: ["pro-students-list"] });
+        }}
       />
       <PaymentForm
         student={payStudent}
@@ -266,9 +422,9 @@ function StudentForm({
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
+                  <SelectItem value="active">Actif (en cours)</SelectItem>
                   <SelectItem value="paused">En pause</SelectItem>
-                  <SelectItem value="completed">Formation terminée</SelectItem>
+                  <SelectItem value="completed">Terminé — Permis obtenu</SelectItem>
                 </SelectContent>
               </Select>
             </div>

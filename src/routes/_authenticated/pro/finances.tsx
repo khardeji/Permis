@@ -36,7 +36,7 @@ function FinancesPage() {
           .select("id, student_id, amount, method, paid_at, note, students(full_name)")
           .eq("instructor_id", iid)
           .order("paid_at", { ascending: false }),
-        supabase.from("students").select("id").eq("instructor_id", iid).neq("status", "completed"),
+        supabase.from("students").select("id").eq("instructor_id", iid),
         supabase.from("lessons").select("student_id, starts_at, ends_at, status").eq("instructor_id", iid),
       ]);
       return { payments: payments.data ?? [], students: students.data ?? [], lessons: lessons.data ?? [] };

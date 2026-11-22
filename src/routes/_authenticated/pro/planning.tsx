@@ -6,7 +6,7 @@ import {
   startOfDay, startOfMonth, startOfWeek,
 } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, MapPin, Plus, Repeat, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -241,6 +241,40 @@ function MonthGrid({ cursor, lessons }: { cursor: Date; lessons: LessonRow[] }) 
   );
 }
 
+const WEEKDAYS = [
+  { jsDay: 1, short: "Lun" },
+  { jsDay: 2, short: "Mar" },
+  { jsDay: 3, short: "Mer" },
+  { jsDay: 4, short: "Jeu" },
+  { jsDay: 5, short: "Ven" },
+  { jsDay: 6, short: "Sam" },
+  { jsDay: 0, short: "Dim" },
+] as const;
+
+function buildOccurrenceDates(
+  startDateStr: string,
+  recurring: boolean,
+  selectedDays: number[],
+  weeks: number,
+): string[] {
+  if (!startDateStr) return [];
+  const base = new Date(`${startDateStr}T12:00:00`);
+  if (Number.isNaN(base.getTime())) return [];
+  if (!recurring) return [startDateStr];
+
+  const countWeeks = Math.max(1, Math.min(24, Math.floor(weeks) || 1));
+  const daysSet = new Set(selectedDays.length > 0 ? selectedDays : [base.getDay()]);
+  const totalDays = countWeeks * 7;
+  const out: string[] = [];
+  for (let offset = 0; offset < totalDays; offset++) {
+    const d = addDays(base, offset);
+    if (daysSet.has(d.getDay())) {
+      out.push(format(d, "yyyy-MM-dd"));
+    }
+  }
+  return out;
+}
+
 function LessonForm({
   open, onClose, instructorId, students, onSaved,
 }: {
@@ -250,8 +284,35 @@ function LessonForm({
   students: { id: string; full_name: string }[];
   onSaved: () => void;
 }) {
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const [busy, setBusy] = useState(false);
   const [studentId, setStudentId] = useState("");
+  const [dateStr, setDateStr] = useState(todayStr);
+  const [recurring, setRecurring] = useState(false);
+  const [weeks, setWeeks] = useState(3);
+  const [selectedDays, setSelectedDays] = useState<number[]>(() => [new Date().getDay()]);
+
+  function handleDateChange(val: string) {
+    setDateStr(val);
+    const parsed = new Date(`${val}T12:00:00`);
+    if (!Number.isNaN(parsed.getTime()) && !recurring) {
+      setSelectedDays([parsed.getDay()]);
+    }
+  }
+
+  function toggleWeekday(jsDay: number) {
+    setSelectedDays((prev) => {
+      if (prev.includes(jsDay)) {
+        return prev.length > 1 ? prev.filter((d) => d !== jsDay) : prev;
+      }
+      return [...prev, jsDay];
+    });
+  }
+
+  const occurrenceDates = useMemo(
+    () => buildOccurrenceDates(dateStr, recurring, selectedDays, weeks),
+    [dateStr, recurring, selectedDays, weeks],
+  );
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -261,41 +322,55 @@ function LessonForm({
       return;
     }
     const f = new FormData(e.currentTarget);
-    const date = String(f.get("date"));
     const start = String(f.get("start"));
     const end = String(f.get("end"));
-    const startsAt = new Date(`${date}T${start}`);
-    const endsAt = new Date(`${date}T${end}`);
-    if (!(endsAt > startsAt)) {
+    const sampleStart = new Date(`${dateStr}T${start}`);
+    const sampleEnd = new Date(`${dateStr}T${end}`);
+    if (!(sampleEnd > sampleStart)) {
       toast.error("L'heure de fin doit être après l'heure de début");
       return;
     }
-    setBusy(true);
-    const { error } = await supabase.from("lessons").insert({
+    if (occurrenceDates.length === 0) {
+      toast.error("Sélectionnez au moins un jour");
+      return;
+    }
+    const location = String(f.get("location")).trim() || null;
+    const notes = String(f.get("notes")).trim() || null;
+
+    const payload = occurrenceDates.map((d) => ({
       instructor_id: instructorId,
       student_id: studentId,
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-      location: String(f.get("location")).trim() || null,
-      notes: String(f.get("notes")).trim() || null,
-    });
+      starts_at: new Date(`${d}T${start}`).toISOString(),
+      ends_at: new Date(`${d}T${end}`).toISOString(),
+      location,
+      notes,
+    }));
+
+    setBusy(true);
+    const { error } = await supabase.from("lessons").insert(payload);
     setBusy(false);
     if (error) {
       toast.error("Séance non créée", { description: error.message });
       return;
     }
-    toast.success("Séance planifiée");
+    toast.success(
+      payload.length > 1
+        ? `${payload.length} séances planifiées sur ${weeks} semaine${weeks > 1 ? "s" : ""}`
+        : "Séance planifiée",
+    );
     setStudentId("");
+    setRecurring(false);
+    setWeeks(3);
     onSaved();
     onClose();
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouvelle séance</DialogTitle>
-          <DialogDescription>Planifiez une leçon de conduite pour un élève.</DialogDescription>
+          <DialogDescription>Planifiez une séance unique ou récurrente sur plusieurs semaines.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4">
           <div className="space-y-2">
@@ -305,10 +380,104 @@ function LessonForm({
               <SelectContent>{students.map((s) => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" name="date" type="date" required defaultValue={format(new Date(), "yyyy-MM-dd")} className="h-11" />
+
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1">
+            <button
+              type="button"
+              onClick={() => setRecurring(false)}
+              className={cn(
+                "rounded-lg py-2 text-xs font-semibold transition",
+                !recurring ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary",
+              )}
+            >
+              Séance unique
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRecurring(true);
+                const parsed = new Date(`${dateStr}T12:00:00`);
+                if (!Number.isNaN(parsed.getTime()) && selectedDays.length === 0) {
+                  setSelectedDays([parsed.getDay()]);
+                }
+              }}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition",
+                recurring ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary",
+              )}
+            >
+              <Repeat className="size-3.5" /> Répéter chaque semaine
+            </button>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="date">{recurring ? "À partir du" : "Date"}</Label>
+            <Input
+              id="date"
+              name="date"
+              type="date"
+              required
+              value={dateStr}
+              onChange={(e) => handleDateChange(e.target.value)}
+              className="h-11"
+            />
+          </div>
+
+          {recurring && (
+            <div className="space-y-3 rounded-xl border border-border bg-secondary/40 p-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Jours de la semaine</Label>
+                <div className="grid grid-cols-7 gap-1">
+                  {WEEKDAYS.map((w) => {
+                    const active = selectedDays.includes(w.jsDay);
+                    return (
+                      <button
+                        key={w.jsDay}
+                        type="button"
+                        onClick={() => toggleWeekday(w.jsDay)}
+                        className={cn(
+                          "rounded-lg border py-1.5 text-xs font-semibold transition",
+                          active
+                            ? "border-brand bg-brand text-brand-foreground shadow-soft"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/40",
+                        )}
+                      >
+                        {w.short}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="weeks" className="text-xs">Pendant combien de semaines ?</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="weeks"
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={weeks}
+                    onChange={(e) => setWeeks(Math.max(1, Math.min(24, Number(e.target.value) || 1)))}
+                    className="h-9 w-20 text-center"
+                  />
+                  <span className="text-xs text-muted-foreground">semaine{weeks > 1 ? "s" : ""}</span>
+                </div>
+              </div>
+              <p className="text-xs font-medium text-primary">
+                {occurrenceDates.length} séance{occurrenceDates.length > 1 ? "s" : ""} à planifier
+                {occurrenceDates.length > 0 && (
+                  <span className="block font-normal text-muted-foreground">
+                    {occurrenceDates
+                      .slice(0, 5)
+                      .map((d) => format(new Date(`${d}T12:00:00`), "EEE d MMM", { locale: fr }))
+                      .join(" · ")}
+                    {occurrenceDates.length > 5 ? ` · +${occurrenceDates.length - 5} autres` : ""}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="start">Début</Label>
@@ -329,7 +498,10 @@ function LessonForm({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={busy}>{busy && <Loader2 className="animate-spin" />} Planifier</Button>
+            <Button type="submit" disabled={busy}>
+              {busy && <Loader2 className="animate-spin" />}
+              {recurring ? `Planifier (${occurrenceDates.length})` : "Planifier"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
