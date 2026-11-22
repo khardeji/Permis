@@ -7,7 +7,8 @@ export const Route = createFileRoute("/api/cron/lesson-reminders")({
         const secret = process.env["CRON_SECRET"];
         if (secret) {
           const auth = request.headers.get("authorization");
-          if (auth !== `Bearer ${secret}`) {
+          const urlSecret = new URL(request.url).searchParams.get("secret");
+          if (auth !== `Bearer ${secret}` && urlSecret !== secret) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
         }
