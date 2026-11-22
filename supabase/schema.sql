@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS public.instructors (
   slug text NOT NULL UNIQUE,
   city text NOT NULL DEFAULT '',
   address text,
+  driving_school_name text,
+  driving_school_address text,
   phone text,
   whatsapp text,
   email text,

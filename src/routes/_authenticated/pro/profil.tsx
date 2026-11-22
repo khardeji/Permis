@@ -77,6 +77,8 @@ function ProfilePage() {
         whatsapp: String(f.get("whatsapp")).trim() || null,
         email: String(f.get("email")).trim() || null,
         address: String(f.get("address")).trim() || null,
+        driving_school_name: String(f.get("driving_school_name")).trim() || null,
+        driving_school_address: String(f.get("driving_school_address")).trim() || null,
         city: currentCity,
         short_bio: String(f.get("short_bio")).trim() || null,
         bio: String(f.get("bio")).trim() || null,
@@ -163,6 +165,28 @@ function ProfilePage() {
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="email">Email public</Label>
               <Input id="email" name="email" type="email" defaultValue={instructor.email ?? ""} className="h-11" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="driving_school_name">Auto-école (optionnel)</Label>
+              <Input
+                id="driving_school_name"
+                name="driving_school_name"
+                defaultValue={instructor.driving_school_name ?? ""}
+                placeholder="Ex. Auto-école Al Amel"
+                maxLength={120}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="driving_school_address">Adresse de l'auto-école (optionnel)</Label>
+              <Input
+                id="driving_school_address"
+                name="driving_school_address"
+                defaultValue={instructor.driving_school_address ?? ""}
+                placeholder="Ex. Avenue Habib Bourguiba, Sfax"
+                maxLength={200}
+                className="h-11"
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="short_bio">Accroche (courte)</Label>

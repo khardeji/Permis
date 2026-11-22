@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MapPin, Star, Award, ArrowRight } from "lucide-react";
+import { MapPin, Star, Award, ArrowRight, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PublicInstructor } from "@/lib/public.functions";
 import { initials } from "@/lib/format";
@@ -44,6 +44,11 @@ export function InstructorCard({ i }: { i: PublicInstructor }) {
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="text-lg font-bold text-primary">{name}</h3>
+        {i.driving_school_name && (
+          <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-brand">
+            <Building2 className="size-3.5 shrink-0" /> {i.driving_school_name}
+          </p>
+        )}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" /> {i.city}</span>
           {i.experience_years ? (

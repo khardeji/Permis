@@ -29,8 +29,10 @@ function publicClient() {
   });
 }
 
-const PUBLIC_COLUMNS =
+const BASE_PUBLIC_COLUMNS =
   "id, slug, first_name, last_name, city, address, phone, whatsapp, email, short_bio, bio, experience_years, avatar_url, cover_url, services, availability, accepting_students, price_per_hour, rating";
+
+const PUBLIC_COLUMNS = `${BASE_PUBLIC_COLUMNS}, driving_school_name, driving_school_address`;
 
 export type PublicInstructor = {
   id: string;
@@ -39,6 +41,8 @@ export type PublicInstructor = {
   last_name: string;
   city: string;
   address: string | null;
+  driving_school_name?: string | null;
+  driving_school_address?: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
@@ -91,11 +95,21 @@ export type PublicStats = {
 };
 
 export const listPublicInstructors = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await publicClient()
+  const sb = publicClient();
+  let { data, error } = await sb
     .from("instructors")
     .select(PUBLIC_COLUMNS)
     .eq("status", "active")
     .order("rating", { ascending: false });
+  if (error && error.message.includes("driving_school")) {
+    const fallback = await sb
+      .from("instructors")
+      .select(BASE_PUBLIC_COLUMNS)
+      .eq("status", "active")
+      .order("rating", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as PublicInstructor[];
 });
@@ -104,12 +118,22 @@ export const getPublicInstructor = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug).slice(0, 120) }))
   .handler(async ({ data }) => {
     const sb = publicClient();
-    const { data: inst, error } = await sb
+    let { data: inst, error } = await sb
       .from("instructors")
       .select(PUBLIC_COLUMNS)
       .eq("slug", data.slug)
       .eq("status", "active")
       .maybeSingle();
+    if (error && error.message.includes("driving_school")) {
+      const fallback = await sb
+        .from("instructors")
+        .select(BASE_PUBLIC_COLUMNS)
+        .eq("slug", data.slug)
+        .eq("status", "active")
+        .maybeSingle();
+      inst = fallback.data;
+      error = fallback.error;
+    }
     if (error) throw new Error(error.message);
     if (!inst) return null;
 

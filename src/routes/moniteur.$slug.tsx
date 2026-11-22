@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft, Award, CheckCircle2, Clock, Mail, MapPin, MessageCircle, Phone, Star, Wallet,
+  ArrowLeft, Award, Building2, CheckCircle2, Clock, Mail, MapPin, MessageCircle, Phone, Star, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/site/PhotoGallery";
@@ -85,6 +85,11 @@ function InstructorPage() {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><MapPin className="size-4" /> {i.city}</span>
+                  {i.driving_school_name && (
+                    <span className="inline-flex items-center gap-1 font-medium text-primary">
+                      <Building2 className="size-4 text-brand" /> {i.driving_school_name}
+                    </span>
+                  )}
                   {i.experience_years ? <span className="inline-flex items-center gap-1"><Award className="size-4" /> {i.experience_years} ans d'expérience</span> : null}
                   {reviews.length > 0 && i.rating > 0 && (
                     <span className="inline-flex items-center gap-1">
@@ -151,6 +156,15 @@ function InstructorPage() {
                   <li><a href={`mailto:${i.email}`} className="flex items-center gap-3 break-all hover:text-brand"><IconBox><Mail className="size-4" /></IconBox>{i.email}</a></li>
                 )}
                 <li className="flex items-center gap-3"><IconBox><MapPin className="size-4" /></IconBox>{[i.address, i.city].filter(Boolean).join(", ")}</li>
+                {(i.driving_school_name || i.driving_school_address) && (
+                  <li className="flex items-start gap-3">
+                    <IconBox><Building2 className="size-4" /></IconBox>
+                    <div>
+                      {i.driving_school_name && <p className="font-medium text-primary">{i.driving_school_name}</p>}
+                      {i.driving_school_address && <p className="text-xs text-muted-foreground">{i.driving_school_address}</p>}
+                    </div>
+                  </li>
+                )}
               </ul>
               <div className="mt-5 grid grid-cols-2 gap-2">
                 {i.phone && <Button asChild variant="outline"><a href={telLink(i.phone)}><Phone /> Appeler</a></Button>}

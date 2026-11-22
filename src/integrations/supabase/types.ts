@@ -178,6 +178,8 @@ export type Database = {
           city: string
           cover_url: string | null
           created_at: string
+          driving_school_address: string | null
+          driving_school_name: string | null
           email: string | null
           experience_years: number | null
           first_name: string
@@ -203,6 +205,8 @@ export type Database = {
           city?: string
           cover_url?: string | null
           created_at?: string
+          driving_school_address?: string | null
+          driving_school_name?: string | null
           email?: string | null
           experience_years?: number | null
           first_name: string
@@ -228,6 +232,8 @@ export type Database = {
           city?: string
           cover_url?: string | null
           created_at?: string
+          driving_school_address?: string | null
+          driving_school_name?: string | null
           email?: string | null
           experience_years?: number | null
           first_name?: string

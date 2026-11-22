@@ -30,7 +30,6 @@ type StatusFilter = "all" | "ongoing" | "completed";
 type PaymentFilter = "all" | "paid" | "unpaid";
 
 const LICENSES = ["B (voiture)", "A (moto)", "A1 (moto légère)", "C (poids lourd)"];
-const METHODS = ["Espèces", "Virement", "Chèque", "Carte", "Autre"];
 
 function StudentsPage() {
   const { data: instructor } = useMyInstructor();
@@ -452,7 +451,6 @@ function PaymentForm({
   onSaved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [method, setMethod] = useState(METHODS[0] ?? "Espèces");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -468,7 +466,7 @@ function PaymentForm({
       instructor_id: instructorId,
       student_id: student.id,
       amount,
-      method,
+      method: "Espèces",
       paid_at: String(f.get("paid_at")) || new Date().toISOString().slice(0, 10),
       note: String(f.get("note")).trim() || null,
     });
@@ -477,7 +475,7 @@ function PaymentForm({
       toast.error("Paiement non enregistré", { description: error.message });
       return;
     }
-    toast.success("Paiement enregistré", { description: `${amount} DT — ${student.full_name}` });
+    toast.success("Paiement enregistré", { description: `${amount} DT (Espèces) — ${student.full_name}` });
     onSaved();
     onClose();
   }
@@ -495,11 +493,8 @@ function PaymentForm({
             <Input id="amount" name="amount" type="number" min="1" step="0.5" required className="h-11" autoFocus />
           </div>
           <div className="space-y-2">
-            <Label>Mode de paiement</Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-              <SelectContent>{METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-            </Select>
+            <Label htmlFor="method">Mode de paiement</Label>
+            <Input id="method" value="Espèces" readOnly className="h-11 bg-secondary/50 text-muted-foreground" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="paid_at">Date</Label>

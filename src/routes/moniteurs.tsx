@@ -45,7 +45,7 @@ function Directory() {
       if (search.ville && i.city !== search.ville) return false;
       if (search.dispo && !i.accepting_students) return false;
       if (!q) return true;
-      return [i.first_name, i.last_name, i.city, i.short_bio, ...(i.services ?? [])]
+      return [i.first_name, i.last_name, i.city, i.driving_school_name, i.short_bio, ...(i.services ?? [])]
         .join(" ")
         .toLowerCase()
         .includes(q);
