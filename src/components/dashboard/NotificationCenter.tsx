@@ -184,35 +184,60 @@ export function NotificationSettingsCard({ role }: { role: Role }) {
     toast.success("Appareil retiré");
   }
 
-  const categoryItems: { key: keyof Prefs; label: string; desc: string; show: boolean }[] = [
-    {
-      key: "enrollments",
-      label: "Inscriptions et demandes",
-      desc: "Nouvelles demandes, acceptations et refus d'inscription.",
-      show: role !== "admin",
-    },
-    {
-      key: "lessons",
-      label: "Séances de conduite",
-      desc: "Séances programmées, modifiées ou annulées.",
-      show: role !== "admin",
-    },
-    {
-      key: "reminders",
-      label: "Rappels 1 heure avant la séance",
-      desc: "Alerte automatique avant chaque leçon prévue (heure de Tunisie).",
-      show: role !== "admin",
-    },
-    {
-      key: "admin_alerts",
-      label: "Notifications administratives",
-      desc:
-        role === "admin"
-          ? "Nouvelles demandes de partenariat, validations et signalements."
-          : "Validation de votre profil et informations importantes de l'équipe.",
-      show: true,
-    },
-  ];
+  const categoryItems: { key: keyof Prefs; label: string; desc: string }[] =
+    role === "admin"
+      ? [
+          {
+            key: "admin_alerts",
+            label: "Demandes de partenariat & validations",
+            desc: "Nouveaux moniteurs inscrits, validations en attente et signalements.",
+          },
+          {
+            key: "enrollments",
+            label: "Activité des inscriptions élèves",
+            desc: "Suivi administratif des nouvelles demandes d'inscription sur la plateforme.",
+          },
+        ]
+      : role === "instructor"
+        ? [
+            {
+              key: "enrollments",
+              label: "Demandes d'inscription de vos élèves",
+              desc: "Alerte dès qu'un nouvel élève demande à s'inscrire avec vous.",
+            },
+            {
+              key: "lessons",
+              label: "Planning & séances de conduite",
+              desc: "Confirmations, modifications ou annulations de séances avec vos élèves.",
+            },
+            {
+              key: "reminders",
+              label: "Rappels 1 heure avant vos séances",
+              desc: "Rappel automatique avant chaque leçon programmée (heure de Tunisie).",
+            },
+            {
+              key: "admin_alerts",
+              label: "Décisions de l'administration",
+              desc: "Validation ou mise à jour du statut de votre compte partenaire.",
+            },
+          ]
+        : [
+            {
+              key: "enrollments",
+              label: "Suivi de mon inscription",
+              desc: "Confirmation d'envoi, acceptation ou refus par votre moniteur.",
+            },
+            {
+              key: "lessons",
+              label: "Mes séances de conduite",
+              desc: "Nouvelle séance programmée, modifiée ou annulée par votre moniteur.",
+            },
+            {
+              key: "reminders",
+              label: "Rappel 1 heure avant ma séance",
+              desc: "Alerte automatique avant chaque leçon prévue (heure de Tunisie).",
+            },
+          ];
 
   return (
     <Panel title="Paramètres des notifications">
@@ -264,9 +289,7 @@ export function NotificationSettingsCard({ role }: { role: Role }) {
             />
           </label>
 
-          {categoryItems
-            .filter((c) => c.show)
-            .map((c) => (
+          {categoryItems.map((c) => (
               <label key={c.key} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3.5 py-2.5">
                 <div>
                   <p className="text-sm font-medium text-primary">{c.label}</p>

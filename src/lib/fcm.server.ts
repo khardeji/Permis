@@ -200,9 +200,19 @@ export async function sendPushToUsers(params: {
                 link: params.link ?? "/",
                 category: params.category,
               },
+              android: {
+                priority: "high",
+                notification: {
+                  sound: "default",
+                  default_sound: true,
+                  default_vibrate_timings: true,
+                  notification_priority: "PRIORITY_MAX",
+                },
+              },
               webpush: {
                 headers: {
                   Urgency: "high",
+                  TTL: "3600",
                 },
                 fcm_options: {
                   link: params.link ?? "/",
@@ -210,9 +220,13 @@ export async function sendPushToUsers(params: {
                 notification: {
                   title: params.title,
                   body: params.body,
-                  icon: "/logo-mark.png",
-                  badge: "/favicon.png",
-                  requireInteraction: false,
+                  icon: "https://permiconduit.vercel.app/favicon.png",
+                  badge: "https://permiconduit.vercel.app/logo-mark.png",
+                  vibrate: [200, 100, 200],
+                  silent: false,
+                  renotify: true,
+                  requireInteraction: true,
+                  tag: `permiconduit-${params.category}-${Date.now()}`,
                 },
               },
             },

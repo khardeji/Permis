@@ -10,6 +10,29 @@ import { useAuth, useRoles } from "@/lib/auth";
 import { listenForegroundMessages } from "@/lib/firebase-web";
 import { fmtRelative } from "@/lib/format";
 
+function playNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.12);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.36);
+  } catch {
+    // Ignore autoplay restrictions
+  }
+}
+
 export function NotificationsBell() {
   const { user } = useAuth();
   const { data: roles = [] } = useRoles();
@@ -42,6 +65,7 @@ export function NotificationsBell() {
     listenForegroundMessages((payload) => {
       const title = payload.notification?.title || payload.data?.["title"] || "Nouvelle notification";
       const body = payload.notification?.body || payload.data?.["body"];
+      playNotificationChime();
       toast.info(title, body ? { description: body } : undefined);
       qc.invalidateQueries({ queryKey: ["notifications"] });
       qc.invalidateQueries({ queryKey: ["notifications-all"] });

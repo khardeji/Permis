@@ -35,8 +35,13 @@ messaging.onBackgroundMessage((payload) => {
 
   self.registration.showNotification(title, {
     body,
-    icon: "/logo-mark.png",
-    badge: "/favicon.png",
+    icon: "/favicon.png",
+    badge: "/logo-mark.png",
+    vibrate: [200, 100, 200],
+    silent: false,
+    renotify: true,
+    requireInteraction: true,
+    tag: `permiconduit-${payload.data?.category || "general"}-${Date.now()}`,
     data: { link },
   });
 });
