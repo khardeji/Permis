@@ -32,7 +32,13 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "PermiConduit — Votre permis commence ici." },
       { property: "og:description", content: "Trouvez votre moniteur de conduite, demandez votre inscription et suivez séances et paiements en ligne." },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://www.permiconduit.tn/" },
+      { property: "og:image", content: "https://www.permiconduit.tn/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "PermiConduit — Votre permis commence ici." },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://www.permiconduit.tn/og-image.png" },
     ],
   }),
   loader: async ({ context }) => {
